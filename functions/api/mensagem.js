@@ -33,18 +33,38 @@ export async function onRequestPost({ request, env }) {
     formal: 'educado e profissional, sem gírias',
   }[tom];
 
+  // Ideia concreta de site, de acordo com o tipo de comércio.
+  const t = (tipo + ' ' + nome).toLowerCase();
+  const ideia =
+    /restaurante|lanchonete|bar\b|caf[eé]|padaria|pizz|churras|sorvet|confeit|doce|hamb|a[cç]ougue/.test(t) ? 'um cardápio online com pedidos direto pelo WhatsApp'
+    : /cabeleir|sal[aã]o|beleza|manicure|barbear|est[eé]tica|cosm/.test(t) ? 'uma página com fotos dos trabalhos e agendamento pelo WhatsApp'
+    : /pet|veterin|banho e tosa/.test(t) ? 'uma página com serviços, fotos e agendamento de banho e consulta pelo WhatsApp'
+    : /academia|esporte|pilates|dan[cç]a|fitness/.test(t) ? 'uma página com horários, planos e aula experimental pelo WhatsApp'
+    : /farm[aá]cia|cl[ií]nica|dentist|consult[oó]rio|m[eé]dic|[oó]tica/.test(t) ? 'uma página com endereço, horários e agendamento pelo WhatsApp'
+    : /oficina|auto|pneu|moto|ve[ií]culo|lava/.test(t) ? 'uma página com serviços e pedido de orçamento pelo WhatsApp'
+    : /roupa|boutique|cal[cç]ado|joia|bolsa|acess[oó]rio|moda|floricult|presente/.test(t) ? 'uma vitrine online com os produtos e contato pelo WhatsApp'
+    : 'uma página simples para aparecer no Google quando alguém buscar o nome e o bairro';
+
+  const quemSou = remetente ? `Me chamo ${remetente} e sou desenvolvedor de sites` : 'Sou desenvolvedor de sites';
+
   const system =
-    'Você escreve mensagens curtas de primeiro contato por WhatsApp, em português do Brasil, para donos de pequenos comércios. ' +
-    'Regras: no máximo 55 palavras; no máximo 1 emoji; sem hashtags; sem promessas de resultado garantido; ' +
-    'não invente fatos sobre o comércio além dos dados fornecidos; cumprimente pelo nome do comércio; ' +
-    'diga que não encontrou um site e pergunte se pode mostrar uma ideia sem compromisso; ' +
-    'termine com uma pergunta simples. Responda somente com o texto da mensagem, sem aspas e sem explicações.';
+    'Você escreve mensagens curtas de primeiro contato por WhatsApp, em português do Brasil, de um desenvolvedor de sites para o dono de um pequeno comércio. ' +
+    'Regras obrigatórias: ' +
+    '1) Comece apenas com uma saudação curta como "Oi, tudo bem?" ou "Olá, tudo bem?". NUNCA coloque o nome do comércio logo depois da saudação. ' +
+    '2) Na frase seguinte, apresente-se dizendo que é desenvolvedor de sites. Não invente nome de empresa. ' +
+    '3) Cite o nome do comércio no meio de uma frase, junto com o bairro, dizendo que o viu por ali ou procurou por ele e não achou um site. ' +
+    '4) Proponha UMA ideia concreta e específica para esse tipo de comércio, usando a ideia fornecida. ' +
+    '5) Escreva com naturalidade, como uma pessoa real, sem clichês como "sem compromisso", "oportunidade única" ou "tudo de bom". ' +
+    '6) No máximo 60 palavras, no máximo 1 emoji, sem hashtags, sem promessa de resultado. ' +
+    '7) Não invente fatos sobre o comércio além dos dados fornecidos. ' +
+    '8) Termine com uma pergunta curta e fácil de responder. ' +
+    'Responda somente com o texto da mensagem, sem aspas e sem explicações.';
 
   const user =
     `Dados do comércio:\n- Nome: ${nome}\n- Tipo: ${tipo || 'não informado'}\n- Bairro/cidade: ${local || 'não informado'}\n` +
     (endereco ? `- Endereço: ${endereco}\n` : '') +
-    `\nQuem escreve: ${remetente || 'um profissional que faz sites para comércios locais'}\n` +
-    (oferta ? `O que oferece: ${oferta}\n` : 'O que oferece: criação de site simples para o comércio aparecer no Google e receber pedidos.\n') +
+    `\nApresentação do remetente: ${quemSou}.\n` +
+    `Ideia concreta para este comércio: ${oferta || ideia}.\n` +
     `Tom: ${tomTxt}.\nVariação: ${variacao}`;
 
   try {
