@@ -190,7 +190,7 @@ footer{border-top:1px solid var(--line);padding-block:24px;color:var(--mute);fon
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
-  var DEFAULT_TPL='Olá! Tudo bem? Encontrei o {nome} aqui em {local} e vi que ainda não têm um site. Posso te mostrar uma ideia de site simples para trazer mais clientes? Sem compromisso 😊';
+  var DEFAULT_TPL='Olá, tudo bem? Sou desenvolvedor de sites. Vi o {nome} aqui em {local} e não encontrei um site de vocês. Posso enviar uma demonstração personalizada?';
   var store={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
   var tpl=$('tpl'); tpl.value=store.get('rss_tpl',DEFAULT_TPL);
   tpl.addEventListener('input',function(){store.set('rss_tpl',tpl.value);render()});

@@ -57,7 +57,7 @@ export async function onRequestPost({ request, env }) {
     '5) Escreva com naturalidade, como uma pessoa real, sem clichês como "sem compromisso", "oportunidade única" ou "tudo de bom". Não use "por ali", "Você precisa disso?" nem emojis de celular. ' +
     '6) No máximo 60 palavras, no máximo 1 emoji, sem hashtags, sem promessa de resultado. ' +
     '7) Não invente fatos sobre o comércio além dos dados fornecidos. ' +
-    '8) Termine com uma pergunta curta e fácil de responder, por exemplo "Posso te mostrar como ficaria?" ou "Faz sentido para vocês?". ' +
+    '8) A última frase deve ser exatamente: "Posso enviar uma demonstração personalizada?" e não pode haver outra pergunta antes dela, então escreva o resto como afirmação. ' +
     'Responda somente com o texto da mensagem, sem aspas e sem explicações.';
 
   const user =
@@ -75,6 +75,11 @@ export async function onRequestPost({ request, env }) {
     });
     let texto = String((out && (out.response || out.result || '')) || '').trim();
     texto = texto.replace(/^["“”']+|["“”']+$/g, '').trim();
+    // Garante o fechamento pedido, mesmo se o modelo variar.
+    const FECHO = 'Posso enviar uma demonstração personalizada?';
+    if (!texto.toLowerCase().includes('demonstração personalizada')) {
+      texto = texto.replace(/\s*[?]\s*$/, '.').trim() + ' ' + FECHO;
+    }
     if (!texto) return json({ erro: 'A IA não retornou texto. Tente de novo.' }, 502);
     return json({ texto });
   } catch (e) {
