@@ -93,6 +93,11 @@ textarea{min-height:170px;resize:vertical;line-height:1.5}
 .btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
 .btn.wa:hover{filter:brightness(1.07)}
 .btn.sm{padding:8px 12px;font-weight:500;font-size:.85rem}
+.btn.ai{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+.ai-box{grid-column:1/-1;background:var(--bg);border:1px dashed var(--accent);border-radius:14px;padding:14px;display:grid;gap:8px}
+.ai-box.err{border-color:var(--warn)}
+.ai-l{font-size:.76rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.ai-box textarea{min-height:0;background:var(--card)}
 .empty{background:var(--card);border:1px dashed var(--line);border-radius:20px;padding:34px 24px;text-align:center;color:var(--mute)}
 .empty b{display:block;color:var(--ink);font:600 1.05rem var(--display);margin-bottom:8px}
 .err{border-color:var(--warn);color:var(--ink)}
@@ -153,6 +158,14 @@ footer{border-top:1px solid var(--line);padding-block:24px;color:var(--mute);fon
         <p>Use <b>{nome}</b> para o nome do comércio e <b>{local}</b> para o bairro ou cidade.</p>
         <textarea id="tpl" aria-label="Modelo de mensagem"></textarea>
         <div class="tools"><button type="button" class="mini" id="resetTpl">Restaurar modelo</button></div>
+      </section>
+      <section class="panel">
+        <h2>Mensagem com IA</h2>
+        <p>A IA escreve um texto diferente para cada comércio, usando estes dados.</p>
+        <div class="f"><label for="sender">Seu nome ou empresa</label><input id="sender" maxlength="60" placeholder="Ex.: Pedro, da Trigo Sites"></div>
+        <div class="f" style="margin-top:10px"><label for="offer">O que você oferece</label><input id="offer" maxlength="160" placeholder="Ex.: site com WhatsApp e mapa em 3 dias"></div>
+        <div class="f" style="margin-top:10px"><label for="tone">Tom</label>
+          <select id="tone"><option value="amigavel">Amigável</option><option value="direto">Direto</option><option value="formal">Formal</option></select></div>
       </section>
       <section class="panel note">
         <b>Antes de chamar</b><br>
@@ -306,14 +319,63 @@ footer{border-top:1px solid var(--line);padding-block:24px;color:var(--mute);fon
         (p?'<span class="tag '+(p.mobile?'m':'l')+'">'+(p.mobile?'celular':'fixo')+'</span>':'')+'</h3>'+
         '<div class="meta">'+(a?'<span>'+esc(a)+'</span>':'')+(r.d<9?'<span>'+r.d.toFixed(1).replace('.',',')+' km</span>':'')+(p?'<span>'+esc(p.display)+'</span>':'<span>sem telefone cadastrado</span>')+'</div></div>'+
         '<div class="acts">'+
+          (p&&p.full?'<button class="btn ai" type="button" data-ai="'+r.id+'">✨ Mensagem com IA</button>':'')+
           (wa?'<a class="btn wa" href="'+wa+'" target="_blank" rel="noopener" data-id="'+r.id+'">Chamar no WhatsApp</a>':'')+
           (p&&p.full?'<a class="btn" href="tel:+'+p.full+'">Ligar</a>':'')+
           '<a class="btn sm" href="'+google+'" target="_blank" rel="noopener">Conferir no Google</a>'+
           '<a class="btn sm" href="'+maps+'" target="_blank" rel="noopener">Ver no mapa</a>'+
           '<button class="btn sm" type="button" data-done="'+r.id+'">'+(done[r.id]?'Desmarcar contato':'Marcar como contatado')+'</button>'+
-        '</div></article>';
+        '</div>'+aiPanel(r)+'</article>';
     }).join('');
   }
+
+  // ---- Mensagem com IA ----
+  var aiMsgs={};  // id -> {state:'loading'|'ready'|'error', text, error}
+  ['sender','offer','tone'].forEach(function(k){
+    var el=$(k); el.value=store.get('rss_'+k,el.value||'');
+    el.addEventListener('input',function(){store.set('rss_'+k,el.value)});
+  });
+  function aiPanel(r){
+    var m=aiMsgs[r.id]; if(!m) return '';
+    if(m.state==='loading') return '<div class="ai-box"><span class="spin"></span>A IA está escrevendo uma mensagem para '+esc(r.name)+'…</div>';
+    if(m.state==='error') return '<div class="ai-box err">'+esc(m.error)+' <button class="btn sm" type="button" data-ai="'+r.id+'">Tentar de novo</button></div>';
+    return '<div class="ai-box"><label class="ai-l" for="ai_'+esc(r.id.replace('/','_'))+'">Mensagem criada pela IA (você pode editar)</label>'+
+      '<textarea id="ai_'+esc(r.id.replace('/','_'))+'" data-aitext="'+r.id+'" rows="4">'+esc(m.text)+'</textarea>'+
+      '<div class="acts"><button class="btn wa" type="button" data-send="'+r.id+'">Enviar no WhatsApp</button>'+
+      '<button class="btn sm" type="button" data-ai="'+r.id+'">Gerar outra</button>'+
+      '<button class="btn sm" type="button" data-copy="'+r.id+'">Copiar</button></div>'+
+      '<div class="note" style="margin-top:8px">O WhatsApp abre com o texto pronto. Falta só você tocar em enviar.</div></div>';
+  }
+  async function genAI(id){
+    var r=results.filter(function(x){return x.id===id})[0]; if(!r) return;
+    aiMsgs[id]={state:'loading'}; render();
+    try{
+      var res=await fetch('/api/mensagem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        nome:r.name,tipo:CAT_LABEL[r.kind]||r.kind,local:placeLabel,endereco:addr(r.tags),
+        remetente:$('sender').value,oferta:$('offer').value,tom:$('tone').value})});
+      var j=await res.json().catch(function(){return {}});
+      if(!res.ok||!j.texto) throw new Error(j.erro||'Não foi possível gerar agora.');
+      aiMsgs[id]={state:'ready',text:j.texto};
+    }catch(e){
+      aiMsgs[id]={state:'error',error:e.message||'Não foi possível gerar agora.'};
+    }
+    render();
+  }
+  $('list').addEventListener('input',function(e){
+    var t=e.target.closest('[data-aitext]'); if(t&&aiMsgs[t.getAttribute('data-aitext')]) aiMsgs[t.getAttribute('data-aitext')].text=t.value;
+  });
+  $('list').addEventListener('click',function(e){
+    var b=e.target.closest('[data-ai],[data-send],[data-copy]'); if(!b) return;
+    if(b.hasAttribute('data-ai')){ genAI(b.getAttribute('data-ai')); return }
+    var id=b.getAttribute('data-send')||b.getAttribute('data-copy'), m=aiMsgs[id]; if(!m||!m.text) return;
+    if(b.hasAttribute('data-copy')){
+      try{navigator.clipboard.writeText(m.text); b.textContent='Copiado'; setTimeout(function(){b.textContent='Copiar'},1500)}catch(err){}
+      return;
+    }
+    var r=results.filter(function(x){return x.id===id})[0]; if(!r||!r.phone||!r.phone.full) return;
+    window.open('https://wa.me/'+r.phone.full+'?text='+encodeURIComponent(m.text),'_blank','noopener');
+    done[id]=true; store.set('rss_done',done); setTimeout(render,300);
+  });
 
   $('list').addEventListener('click',function(e){
     var t=e.target.closest('[data-done],[data-id]'); if(!t) return;
