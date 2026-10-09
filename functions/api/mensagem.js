@@ -54,10 +54,10 @@ export async function onRequestPost({ request, env }) {
     '2) Na frase seguinte, apresente-se dizendo que é desenvolvedor de sites. Não invente nome de empresa. ' +
     '3) Cite o nome do comércio no meio de uma frase, junto com o bairro, dizendo que o viu por ali ou procurou por ele e não achou um site. ' +
     '4) Proponha UMA ideia concreta e específica para esse tipo de comércio, usando a ideia fornecida. ' +
-    '5) Escreva com naturalidade, como uma pessoa real, sem clichês como "sem compromisso", "oportunidade única" ou "tudo de bom". ' +
+    '5) Escreva com naturalidade, como uma pessoa real, sem clichês como "sem compromisso", "oportunidade única" ou "tudo de bom". Não use "por ali", "Você precisa disso?" nem emojis de celular. ' +
     '6) No máximo 60 palavras, no máximo 1 emoji, sem hashtags, sem promessa de resultado. ' +
     '7) Não invente fatos sobre o comércio além dos dados fornecidos. ' +
-    '8) Termine com uma pergunta curta e fácil de responder. ' +
+    '8) Termine com uma pergunta curta e fácil de responder, por exemplo "Posso te mostrar como ficaria?" ou "Faz sentido para vocês?". ' +
     'Responda somente com o texto da mensagem, sem aspas e sem explicações.';
 
   const user =
