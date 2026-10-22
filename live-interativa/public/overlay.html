@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Overlay da live</title>
+<link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+<!-- Fonte de navegador no OBS: http://localhost:3000/overlay  (1920x1080, fundo transparente).
+     Adicione ?fundo=1 para ver com fundo escuro num navegador comum. -->
+<div id="palco">
+  <header id="meta" hidden>
+    <div class="meta-topo"><span id="meta-texto"></span><span id="meta-valor"></span></div>
+    <div class="barra"><div id="meta-barra"></div></div>
+  </header>
+
+  <aside id="ranking" hidden>
+    <h2>Top doadores</h2>
+    <ol id="ranking-lista"></ol>
+  </aside>
+
+  <div id="avisos"></div>
+  <div id="bau-cena" hidden></div>
+</div>
+<canvas id="particulas"></canvas>
+<script src="overlay.js" type="module"></script>
+</body>
+</html>

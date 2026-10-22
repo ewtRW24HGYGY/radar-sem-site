@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Painel da live</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #181b24; --line: #2a2f3d; --ink: #eef0f6; --mute: #98a0b3;
+    --accent: #25f4ee; --accent-2: #fe2c55; --ok: #4be08a; --warn: #ffc233;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+  h1 { font-size: 24px; margin: 0; }
+  h2 { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); margin: 0 0 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input { flex: 1 1 200px; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0f1117; color: var(--ink); font: inherit; }
+  button { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #222736; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primario { background: var(--accent); color: #04201f; border-color: var(--accent); }
+  button.perigo { color: var(--accent-2); }
+  .status { display: flex; gap: 8px; align-items: center; color: var(--mute); margin-top: 12px; }
+  .ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--mute); }
+  .ponto.conectado { background: var(--ok); }
+  .ponto.conectando { background: var(--warn); }
+  .ponto.erro { background: var(--accent-2); }
+  .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .bau-btn { text-align: left; }
+  .bau-btn small { display: block; font-weight: 400; color: var(--mute); }
+  .barra { height: 12px; border-radius: 99px; background: #0f1117; overflow: hidden; margin: 8px 0; }
+  #barra { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.4s; }
+  ol { margin: 0; padding-left: 20px; }
+  .dica { color: var(--mute); font-size: 14px; margin: 8px 0 0; }
+  code { background: #0f1117; padding: 2px 6px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Painel da live interativa</h1>
+
+  <section class="card">
+    <h2>1. Conectar na sua live</h2>
+    <form class="linha" id="form-conectar">
+      <input id="usuario" placeholder="seu @ do TikTok (sem o @)" autocomplete="off" spellcheck="false" maxlength="40">
+      <button class="primario" type="submit">Conectar</button>
+      <button type="button" id="desconectar">Desconectar</button>
+    </form>
+    <div class="status"><span class="ponto" id="ponto"></span><span id="status-texto">Parado</span></div>
+    <p class="dica">Você precisa estar ao vivo. O painel só <em>lê</em> os presentes que seus seguidores mandam. Nada é enviado ao TikTok.</p>
+  </section>
+
+  <section class="card">
+    <h2>2. Fonte no OBS</h2>
+    <p style="margin:0">Adicione uma <b>Fonte de navegador</b> com a URL <code id="url-overlay"></code>, largura 1920 e altura 1080. O fundo já é transparente.</p>
+  </section>
+
+  <section class="card">
+    <h2>Estado da meta</h2>
+    <div id="meta-info">0 / 0 💎</div>
+    <div class="barra"><div id="barra"></div></div>
+    <div class="linha"><span id="ranking-info" class="dica" style="margin:0">Sem doações ainda.</span></div>
+    <div class="linha" style="margin-top:12px"><button class="perigo" id="zerar">Zerar meta e ranking</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Testar sem estar ao vivo (simulação local)</h2>
+    <p class="dica" style="margin-top:0">Estes botões só disparam o efeito no seu overlay. Servem para ajustar o visual e as regras do <code>config.js</code>.</p>
+    <div class="linha" style="margin-bottom:12px">
+      <input id="sim-nome" value="Maria" maxlength="30" aria-label="Nome do doador simulado">
+    </div>
+    <div class="grade">
+      <button class="bau-btn" data-presente="Rose" data-diamantes="1">🌹 Rose<small>1 💎</small></button>
+      <button class="bau-btn" data-presente="Doughnut" data-diamantes="30">🍩 Doughnut<small>30 💎</small></button>
+      <button class="bau-btn" data-presente="GG" data-diamantes="1">💥 GG<small>tremor</small></button>
+      <button class="bau-btn" data-presente="Corgi" data-diamantes="25">🎆 Fogos<small>25 💎</small></button>
+      <button class="bau-btn" data-presente="Galaxy Globe" data-diamantes="99">📦 Baú comum<small>99 💎</small></button>
+      <button class="bau-btn" data-presente="Rosa Premium" data-diamantes="250">📦 Baú raro<small>250 💎</small></button>
+      <button class="bau-btn" data-presente="Sports Car" data-diamantes="500">📦 Baú épico<small>500 💎</small></button>
+      <button class="bau-btn" data-presente="Lion" data-diamantes="1500">📦 Baú lendário<small>1500 💎</small></button>
+      <button class="bau-btn" data-evento="seguidor">➕ Novo seguidor<small>grátis</small></button>
+      <button class="bau-btn" data-evento="compartilhou">🔁 Compartilhou<small>grátis</small></button>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('url-overlay').textContent = `${location.origin}/overlay`;
+
+  let ws;
+  const guardado = (() => { try { return localStorage.getItem('usuario') || ''; } catch { return ''; } })();
+  $('usuario').value = guardado;
+
+  function enviar(msg) {
+    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  }
+
+  function abrir() {
+    ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.tipo === 'status') {
+        $('ponto').className = `ponto ${m.status}`;
+        $('status-texto').textContent = m.mensagem || { parado: 'Parado', conectado: 'Conectado', conectando: 'Conectando…', erro: 'Erro' }[m.status];
+        if (m.usuario && !$('usuario').value) $('usuario').value = m.usuario;
+      } else if (m.tipo === 'estado') {
+        $('meta-info').textContent = `${m.metaTexto}: ${m.progresso} / ${m.meta} 💎 (metas batidas: ${m.metasBatidas})`;
+        $('barra').style.width = `${Math.min(100, (m.progresso / m.meta) * 100)}%`;
+        $('ranking-info').textContent = m.ranking.length ? 'Top: ' + m.ranking.map((r) => `${r.nome} (${r.diamantes})`).join(' · ') : 'Sem doações ainda.';
+      }
+    };
+    ws.onclose = () => setTimeout(abrir, 1500);
+  }
+  abrir();
+
+  $('form-conectar').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const usuario = $('usuario').value.trim();
+    try { localStorage.setItem('usuario', usuario); } catch { /* sem armazenamento */ }
+    enviar({ tipo: 'conectar', usuario });
+  });
+  $('desconectar').addEventListener('click', () => enviar({ tipo: 'desconectar' }));
+  $('zerar').addEventListener('click', () => enviar({ tipo: 'zerar' }));
+
+  document.querySelectorAll('[data-presente], [data-evento]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const nome = $('sim-nome').value.trim() || 'Visitante';
+      if (b.dataset.evento) enviar({ tipo: 'simular', evento: b.dataset.evento, nome });
+      else enviar({ tipo: 'simular', evento: 'presente', nome, presente: b.dataset.presente, diamantes: Number(b.dataset.diamantes) });
+    });
+  });
+</script>
+</body>
+</html>

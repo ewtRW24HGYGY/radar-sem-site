@@ -1,0 +1,17 @@
+{
+  "name": "live-interativa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Overlay interativo para lives do TikTok: presentes reais disparam efeitos, baú de prêmios e meta.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "tiktok-live-connector": "^2.5.0",
+    "ws": "^8.22.0"
+  }
+}
