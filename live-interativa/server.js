@@ -12,36 +12,21 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 import config from './config.js';
+import { criarMotor } from './regras.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 const PUBLIC_DIR = resolve(fileURLToPath(new URL('./public', import.meta.url)));
 
-// ---------- estado da sessão ----------
+// ---------- estado da conexão ----------
 const estado = {
   usuario: process.env.TIKTOK_USER || '',
   status: 'parado', // parado | conectando | conectado | erro
   mensagem: '',
-  total: 0,
-  metaAtual: config.meta.alvo,
-  metasBatidas: 0,
-  ranking: new Map(), // apelido -> diamantes
 };
 
-function snapshot() {
-  const ranking = [...estado.ranking.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([nome, diamantes]) => ({ nome, diamantes }));
-  return {
-    titulo: config.titulo,
-    metaTexto: config.meta.texto,
-    meta: estado.metaAtual,
-    progresso: estado.total,
-    metasBatidas: estado.metasBatidas,
-    ranking,
-  };
-}
+// Regras (presente -> ação, meta, ranking) ficam em regras.js, compartilhado com a demo.
+const motor = criarMotor(config, (msg) => transmitir(msg));
 
 // ---------- WebSocket para overlay e painel ----------
 const server = http.createServer(servirArquivo);
@@ -76,7 +61,7 @@ function definirStatus(status, mensagem = '') {
 
 wss.on('connection', (ws) => {
   enviar(ws, statusMsg());
-  enviar(ws, { tipo: 'estado', ...snapshot() });
+  enviar(ws, { tipo: 'estado', ...motor.snapshot() });
   ws.on('message', (raw) => {
     let msg;
     try {
@@ -97,88 +82,11 @@ function tratarComando(msg) {
       desconectar();
       break;
     case 'zerar':
-      estado.total = 0;
-      estado.metaAtual = config.meta.alvo;
-      estado.metasBatidas = 0;
-      estado.ranking.clear();
-      transmitir({ tipo: 'estado', ...snapshot() });
+      motor.zerar();
       break;
     case 'simular':
-      simular(msg);
+      motor.simular(msg);
       break;
-  }
-}
-
-// ---------- regras: presente -> ação ----------
-const sortear = (lista) => lista[Math.floor(Math.random() * lista.length)];
-const preencher = (texto, nome) => String(texto || '').replaceAll('{nome}', nome);
-
-export function decidirAcao({ nome, presente, diamantes }) {
-  const porNome = config.presentes[presente.toLowerCase()];
-  let regra = porNome;
-  if (!regra) {
-    const valor = Math.max(diamantes, 1);
-    regra = [...config.faixas].reverse().find((f) => valor >= f.min) ?? config.faixas[0];
-  }
-  const acao = {
-    efeito: regra.efeito,
-    texto: preencher(regra.texto, nome),
-    emoji: regra.emoji,
-  };
-  if (regra.efeito === 'bau') {
-    acao.raridade = regra.raridade || 'comum';
-    acao.premio = sortear(config.premios[acao.raridade] ?? config.premios.comum);
-  }
-  return acao;
-}
-
-function processarPresente({ nome, avatar, presente, imagem, diamantes, quantidade }) {
-  estado.total += diamantes;
-  estado.ranking.set(nome, (estado.ranking.get(nome) || 0) + diamantes);
-
-  const acoes = [decidirAcao({ nome, presente, diamantes })];
-
-  // Meta batida (pode bater mais de uma de uma vez em presentes grandes).
-  while (estado.total >= estado.metaAtual) {
-    estado.total -= estado.metaAtual;
-    estado.metasBatidas += 1;
-    estado.metaAtual = Math.round(estado.metaAtual * config.meta.multiplicador);
-    acoes.push({
-      efeito: 'bau',
-      raridade: 'lendario',
-      texto: `META BATIDA! Obrigado, chat!`,
-      premio: sortear(config.premios.lendario),
-      meta: true,
-    });
-  }
-
-  transmitir({ tipo: 'presente', nome, avatar, presente, imagem, diamantes, quantidade, acoes });
-  transmitir({ tipo: 'estado', ...snapshot() });
-}
-
-function processarExtra(tipo, nome, avatar) {
-  const regra = config.extras[tipo];
-  if (!regra) return;
-  transmitir({ tipo, nome, avatar, acoes: [{ efeito: regra.efeito, texto: preencher(regra.texto, nome) }] });
-}
-
-// ---------- simulador (para testar sem estar ao vivo) ----------
-function simular(msg) {
-  const nome = String(msg.nome || 'Visitante').slice(0, 30);
-  if (msg.evento === 'presente') {
-    const diamantes = Math.max(1, Math.min(Number(msg.diamantes) || 1, 100000));
-    processarPresente({
-      nome,
-      avatar: '',
-      presente: String(msg.presente || 'Presente').slice(0, 40),
-      imagem: '',
-      diamantes,
-      quantidade: 1,
-    });
-  } else if (msg.evento === 'seguidor') {
-    processarExtra('seguidor', nome, '');
-  } else if (msg.evento === 'compartilhou') {
-    processarExtra('compartilhou', nome, '');
   }
 }
 
@@ -227,10 +135,10 @@ async function conectar(usuario) {
   con.on(WebcastEvent.GIFT, (d) => {
     const g = lerPresente(d);
     if (g.emSequencia) return;
-    processarPresente({ ...quemE(d), ...g });
+    motor.processarPresente({ ...quemE(d), ...g });
   });
-  con.on(WebcastEvent.FOLLOW, (d) => processarExtra('seguidor', quemE(d).nome, quemE(d).avatar));
-  con.on(WebcastEvent.SHARE, (d) => processarExtra('compartilhou', quemE(d).nome, quemE(d).avatar));
+  con.on(WebcastEvent.FOLLOW, (d) => motor.processarExtra('seguidor', quemE(d).nome, quemE(d).avatar));
+  con.on(WebcastEvent.SHARE, (d) => motor.processarExtra('compartilhou', quemE(d).nome, quemE(d).avatar));
   con.on(WebcastEvent.LIKE, (d) => transmitir({ tipo: 'curtida', total: d.totalLikeCount ?? 0 }));
   con.on(WebcastEvent.STREAM_END, () => definirStatus('parado', 'A live foi encerrada.'));
   con.on(ControlEvent.DISCONNECTED, () => {
@@ -271,12 +179,15 @@ const TIPOS = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
 };
-const ROTAS = { '/': '/painel.html', '/painel': '/painel.html', '/overlay': '/overlay.html' };
+const ROTAS = { '/': '/painel.html', '/painel': '/painel.html', '/overlay': '/overlay.html', '/demo': '/demo.html' };
+// Módulos compartilhados com a página de demonstração (/demo), que roda as regras no navegador.
+const ARQUIVOS_RAIZ = { '/config.js': './config.js', '/regras.js': './regras.js' };
 
 async function servirArquivo(req, res) {
   const { pathname } = new URL(req.url, 'http://localhost');
-  const caminho = normalize(join(PUBLIC_DIR, ROTAS[pathname] ?? pathname));
-  if (!caminho.startsWith(PUBLIC_DIR)) {
+  const raiz = ARQUIVOS_RAIZ[pathname];
+  const caminho = raiz ? fileURLToPath(new URL(raiz, import.meta.url)) : normalize(join(PUBLIC_DIR, ROTAS[pathname] ?? pathname));
+  if (!raiz && !caminho.startsWith(PUBLIC_DIR)) {
     res.writeHead(403).end('Proibido');
     return;
   }

@@ -22,6 +22,8 @@ npm start
 2. No OBS, adicione uma **Fonte de navegador** com a URL `http://localhost:3000/overlay`, 1920x1080. O fundo é transparente.
    Para ver no navegador comum, use `http://localhost:3000/overlay?fundo=1`.
 3. Sem estar ao vivo, use os botões de **simulação** do painel para testar efeitos e regras.
+4. Para ver tudo numa página só (overlay e botões), abra `http://localhost:3000/demo`. Ela roda as mesmas regras
+   (`regras.js` e `config.js`) dentro do navegador e não se conecta ao TikTok.
 
 ## Regras (`config.js`)
 
