@@ -53,7 +53,7 @@ export function criarMotor(config, transmitir) {
     }
     urnas.votantes.set(id, lado.id);
     urnas.votos.get(lado.id).gratis += 1;
-    transmitir({ tipo: 'voto', ok: true, origem: 'chat', lado: lado.id, nome, votos: 1 });
+    transmitir({ tipo: 'voto', ok: true, origem: 'chat', lado: lado.id, nome, votos: 1, placar: snapshotUrnas() });
     transmitir(snapshotUrnas());
   }
 
@@ -63,7 +63,7 @@ export function criarMotor(config, transmitir) {
     if (!lado) return;
     const votos = cfgUrnas.votosPorPresente * Math.max(1, quantidade || 1);
     urnas.votos.get(lado.id).presente += votos;
-    transmitir({ tipo: 'voto', ok: true, origem: 'presente', lado: lado.id, nome, votos });
+    transmitir({ tipo: 'voto', ok: true, origem: 'presente', lado: lado.id, nome, votos, placar: snapshotUrnas() });
     transmitir(snapshotUrnas());
   }
 

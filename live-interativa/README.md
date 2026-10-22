@@ -62,6 +62,9 @@ Duas urnas na tela, Rosa Branca (22) e Rosa Vermelha (13), com placar, porcentag
   uma "rosa branca" na lista do TikTok: a urna branca aceita um presente com esse nome, se existir, e o Tsuru. Troque em `config.js`.
 - **`config.urnas.aoVivo` vem desligado**: só os botões de teste do painel e da demo votam, e o chat e os presentes de uma live real
   são ignorados pelas urnas. Só mude para `true` se for usar de verdade.
+- A cada voto, **duas mãos** digitam o número no teclado do overlay (a esquerda o primeiro dígito, a direita o segundo) e apertam
+  **VOTAR**; só então a cédula cai e o placar muda. Numa enxurrada de votos, as animações mais antigas são puladas, mas o placar
+  final é sempre o correto. O teclado é de estilo jogo de propósito: não imita a urna eletrônica de verdade.
 - A regra de uma vez por pessoa vale enquanto o servidor está rodando; reiniciar zera as urnas.
 - A tela mostra "Brincadeira de teste. Não é pesquisa eleitoral." Isso não torna legal uma enquete sobre eleição: o TSE proíbe enquetes
   eleitorais no período de campanha, então não use isso ao vivo até a eleição acabar.

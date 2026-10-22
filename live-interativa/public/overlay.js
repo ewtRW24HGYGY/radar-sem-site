@@ -49,6 +49,8 @@ const SONS = {
   correr: () => tocar([220, 277, 330, 277, 220, 277], { tipo: 'square', passo: 0.1, vol: 0.04 }),
   dinheiro: () => tocar([1568, 2093, 2637], { passo: 0.07, vol: 0.08 }),
   galaxia: () => tocar([196, 247, 294, 392, 494, 587, 784, 988], { passo: 0.12, vol: 0.07 }),
+  tecla: () => tocar([1250], { tipo: 'square', passo: 0.025, vol: 0.05 }),
+  votar: () => tocar([660, 880], { passo: 0.08, vol: 0.09 }),
   bauAbre: () => tocar([392, 523, 659, 784, 1047], { passo: 0.1 }),
   bauBalanca: () => tocar([140, 120, 140, 120], { tipo: 'square', passo: 0.12, vol: 0.06 }),
 };
@@ -559,6 +561,7 @@ const ultimaCedula = {};
 
 function desenharUrnas(u) {
   $('urnas').hidden = false;
+  if (!teclado) montarTeclado(Math.max(...u.lados.map((l) => l.numero.length)));
   const chave = u.lados.map((l) => l.id).join();
   if (chave !== urnasMontadas) {
     urnasMontadas = chave;
@@ -633,15 +636,109 @@ function animarVoto(v) {
   }
 }
 
+// ---------- teclado com duas mãos ----------
+// Cada voto vira uma sequência: as mãos digitam o número do lado e apertam VOTAR; só então a cédula
+// cai e o placar muda. Votos em excesso pulam a animação, mas o placar final é sempre o último.
+const filaTeclado = [];
+let teclando = false;
+let placarPendente = null;
+let teclado = null;
+
+function montarTeclado(digitos) {
+  teclado = document.createElement('section');
+  teclado.id = 'teclado';
+  teclado.setAttribute('aria-hidden', 'true');
+  teclado.innerHTML = `
+    <div class="visor"><span class="digitos">${'<b></b>'.repeat(digitos)}</span><span class="visor-texto"></span></div>
+    <div class="teclas">
+      ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => `<div class="tecla" data-tecla="${n}">${n}</div>`).join('')}
+      <div class="tecla votar" data-tecla="votar">VOTAR</div>
+    </div>
+    <div class="mao esquerda">👇</div>
+    <div class="mao direita">👇</div>`;
+  palco.append(teclado);
+  descansarMaos();
+}
+
+function descansarMaos() {
+  const largura = teclado.clientWidth;
+  for (const [mao, x] of [[teclado.querySelector('.esquerda'), largura * 0.22], [teclado.querySelector('.direita'), largura * 0.78]]) {
+    mao.style.setProperty('--x', `${x}px`);
+    mao.style.setProperty('--y', '-6px');
+  }
+}
+
+async function apertar(mao, tecla) {
+  mao.style.setProperty('--x', `${tecla.offsetLeft + tecla.offsetWidth / 2}px`);
+  mao.style.setProperty('--y', `${tecla.offsetTop + tecla.offsetHeight / 2}px`);
+  await dormir(240);
+  mao.classList.add('aperta');
+  tecla.classList.add('apertada');
+  SONS.tecla();
+  await dormir(130);
+  mao.classList.remove('aperta');
+  tecla.classList.remove('apertada');
+  await dormir(70);
+}
+
+function enfileirarVoto(v) {
+  filaTeclado.push(v);
+  // Enxurrada de votos: descarta animações antigas (o placar de cada voto já inclui os anteriores).
+  while (filaTeclado.length > 5) filaTeclado.shift();
+  if (!teclando) teclar();
+}
+
+async function teclar() {
+  teclando = true;
+  while (filaTeclado.length) {
+    const v = filaTeclado.shift();
+    const lado = v.placar.lados.find((l) => l.id === v.lado);
+    if (!teclado || !lado) continue;
+    teclado.style.setProperty('--cor', lado.cor);
+    const slots = [...teclado.querySelectorAll('.digitos b')];
+    const texto = teclado.querySelector('.visor-texto');
+    slots.forEach((s) => (s.textContent = ''));
+    texto.textContent = v.nome;
+    teclado.classList.remove('confirmado');
+
+    const maos = [teclado.querySelector('.esquerda'), teclado.querySelector('.direita')];
+    for (const [i, d] of [...lado.numero].entries()) {
+      const tecla = teclado.querySelector(`[data-tecla="${d}"]`);
+      if (!tecla) continue;
+      await apertar(maos[i % 2], tecla);
+      if (slots[i]) slots[i].textContent = d;
+    }
+    texto.textContent = lado.nome;
+    await dormir(220);
+    await apertar(maos[1], teclado.querySelector('[data-tecla="votar"]'));
+    SONS.votar();
+    teclado.classList.add('confirmado');
+    texto.textContent = `✓ +${v.votos} ${lado.nome}`;
+    desenharUrnas(v.placar);
+    animarVoto(v);
+    await dormir(450);
+    descansarMaos();
+  }
+  teclando = false;
+  if (placarPendente) {
+    desenharUrnas(placarPendente);
+    placarPendente = null;
+  }
+}
+
 // ---------- WebSocket ----------
 function conectar() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.tipo === 'estado') desenharEstado(msg);
-    else if (msg.tipo === 'urnas') desenharUrnas(msg);
+    else if (msg.tipo === 'urnas') {
+      // Enquanto as mãos digitam, o placar só muda quando apertam VOTAR.
+      if (teclando) placarPendente = msg;
+      else desenharUrnas(msg);
+    }
     else if (msg.tipo === 'voto') {
-      if (msg.ok) animarVoto(msg);
+      if (msg.ok) enfileirarVoto(msg);
     } else if (msg.acoes) enfileirar(msg.acoes, { avatar: msg.avatar });
   };
   ws.onclose = () => setTimeout(conectar, 2000);

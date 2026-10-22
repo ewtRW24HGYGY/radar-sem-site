@@ -51,8 +51,8 @@
     top: env(safe-area-inset-top, 0px);
     z-index: 2;
     flex: none;
-    height: 52vh;
-    min-height: 320px;
+    height: 64vh;
+    min-height: 460px;
     overflow: hidden;
     background: repeating-conic-gradient(#171a24 0% 25%, #1e222e 0% 50%) 0 0 / 40px 40px;
     color: #fff;
@@ -87,6 +87,9 @@
     .palco-demo .meta-topo { font-size: 15px; margin-bottom: 6px; }
     .palco-demo #urnas { top: auto; bottom: 10px; left: 12px; right: 12px; width: auto; padding: 8px 12px; }
     .palco-demo .urnas-lados { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .palco-demo #avisos { bottom: 56%; }
+    .palco-demo #teclado { left: 50%; bottom: 74px; translate: -50% 0; width: 270px; padding: 8px 10px 10px; }
+    .palco-demo .teclas { grid-auto-rows: 32px; gap: 5px; }
     .palco-demo .urna { grid-template-columns: 44px auto 1fr; grid-template-areas: "caixa numero votos"; }
     .palco-demo .urna-caixa { width: 44px; height: 44px; }
     .palco-demo .urna .nome, .palco-demo .urna .pct, .palco-demo .urnas-legenda { display: none; }
