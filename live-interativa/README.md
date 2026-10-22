@@ -25,11 +25,30 @@ npm start
 4. Para ver tudo numa página só (overlay e botões), abra `http://localhost:3000/demo`. Ela roda as mesmas regras
    (`regras.js` e `config.js`) dentro do navegador e não se conecta ao TikTok.
 
+## Presentes e efeitos
+
+Cada presente do `catalogo.js` (de Rosa, 1 moeda, até a Galáxia, 1000 moedas) tem animação própria:
+
+| Efeito | Presentes |
+|---|---|
+| Sobe flutuando | Rosa, TikTok, Sorvete, Heart Me, Coração com os dedos, Tsuru |
+| Explosão | Perfume, Chapéu e Bigode |
+| Chuva | Rosquinha, Coroinha, Mãos em coração |
+| Tela treme | GG |
+| Confete | Confete |
+| Atravessa a tela | Corgi (deixa ossinhos), Cisne, Trem com vagões |
+| Chuva de notas | Pistola de dinheiro |
+| Galáxia em tela cheia | Galáxia |
+
+- Sequências (x5, x30...) deixam o efeito maior e mostram o combo no aviso.
+- Presente que **não está na lista** (o TikTok muda o catálogo) cai em `porValor` do `config.js`, então qualquer presente reage.
+- O valor total do envio pode abrir um baú extra (`baus`): 299 raro, 500 épico, 1000 lendário.
+- Os valores do catálogo são de referência (usados nos botões de teste). Ao vivo, vale o valor que o TikTok manda no evento.
+
 ## Regras (`config.js`)
 
-- `presentes`: efeito por nome do presente (ex.: `rose`, `doughnut`).
-- `faixas`: efeito pelo valor em diamantes (1 confete, 20 fogos, 99+ baú comum, 250 raro, 500 épico, 1500 lendário).
-- `premios`: o que acontece quando cada tipo de baú abre. Troque pelos seus desafios.
+- `porValor`: efeito pelo valor de um presente que não está no catálogo.
+- `baus` e `premios`: quando o baú abre e o que acontece. Troque pelos seus desafios.
 - `meta`: alvo em diamantes; ao bater, abre um baú lendário e a próxima meta cresce.
 
 Presentes em sequência (como Rosas repetidas) são contados quando a sequência termina.

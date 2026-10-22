@@ -57,7 +57,7 @@
     background: repeating-conic-gradient(#171a24 0% 25%, #1e222e 0% 50%) 0 0 / 40px 40px;
     color: #fff;
   }
-  .palco-demo #palco { position: absolute; }
+  .palco-demo #palco, .palco-demo #particulas { position: absolute; }
   .dica {
     position: absolute; inset: auto 16px 16px 16px; margin: 0; text-align: center;
     color: #c9cfdd; font-size: 15px; pointer-events: none;
@@ -66,7 +66,7 @@
   .mesa { padding: 16px max(16px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
   .mesa-topo { display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: end; }
   .campo { display: grid; gap: 4px; font-size: 13px; color: var(--d-mute); }
-  .campo input { min-width: 0; width: 200px; max-width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--d-line);
+  .campo input, .campo select { min-width: 0; width: 200px; max-width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--d-line);
     background: var(--d-surface); color: var(--d-ink); font: inherit; }
   .grupo { display: grid; gap: 8px; }
   .grupo h2 { margin: 0; font: 600 12px/1.3 var(--d-font-body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--d-mute); }
@@ -114,36 +114,35 @@
     <div id="avisos"></div>
     <div id="bau-cena" hidden></div>
   </div>
+  <canvas id="particulas"></canvas>
   <p class="dica" id="dica">Escolha um presente na mesa de testes abaixo. Ative o som do navegador para ouvir os efeitos.</p>
 </section>
-<canvas id="particulas"></canvas>
 
 <section class="mesa" aria-label="Mesa de testes">
   <div class="mesa-topo">
     <label class="campo" for="sim-nome">Quem manda o presente
       <input id="sim-nome" value="Maria" maxlength="30" autocomplete="off">
     </label>
+    <label class="campo" for="sim-qtd">Sequência
+      <select id="sim-qtd">
+        <option value="1">x1</option><option value="5">x5</option><option value="10">x10</option><option value="30">x30</option>
+      </select>
+    </label>
     <button type="button" class="fraco" id="zerar">Zerar meta e ranking</button>
   </div>
 
   <div class="grupo">
-    <h2>Regra por nome do presente</h2>
-    <div class="botoes">
-      <button type="button" data-presente="Rose" data-diamantes="1">Rosa<small>chuva de corações · 1 💎</small></button>
-      <button type="button" data-presente="Doughnut" data-diamantes="30">Doughnut<small>chuva de rosquinhas · 30 💎</small></button>
-      <button type="button" data-presente="GG" data-diamantes="1">GG<small>a tela treme · 1 💎</small></button>
-    </div>
+    <h2>Presentes até a Galáxia, do menor ao maior</h2>
+    <div class="botoes" id="grade-presentes"></div>
   </div>
 
   <div class="grupo">
-    <h2>Regra por valor em diamantes</h2>
+    <h2>Presente fora da lista (efeito pelo valor)</h2>
     <div class="botoes">
-      <button type="button" data-presente="Presente pequeno" data-diamantes="5">5 💎<small>confete</small></button>
-      <button type="button" data-presente="Presente médio" data-diamantes="25">25 💎<small>fogos de artifício</small></button>
-      <button type="button" data-presente="Presente de 99" data-diamantes="99">99 💎<small>baú comum</small></button>
-      <button type="button" data-presente="Presente de 250" data-diamantes="250">250 💎<small>baú raro</small></button>
-      <button type="button" data-presente="Presente de 500" data-diamantes="500">500 💎<small>baú épico</small></button>
-      <button type="button" data-presente="Presente de 1500" data-diamantes="1500">1500 💎<small>baú lendário</small></button>
+      <label class="campo" for="sim-valor">Valor de um presente, em moedas
+        <input id="sim-valor" type="number" min="1" max="1000" value="150">
+      </label>
+      <button type="button" id="sim-desconhecido">Enviar presente novo<small>regra por valor</small></button>
     </div>
   </div>
 

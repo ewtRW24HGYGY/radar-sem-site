@@ -98,10 +98,33 @@ body.fundo {
   animation: entra 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
 .aviso.sai { animation: sai 0.4s ease-in both; }
-.aviso img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+.aviso img.avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+.aviso img.presente { width: 64px; height: 64px; object-fit: contain; }
 .aviso .icone { font-size: 44px; line-height: 1; }
 @keyframes entra { from { opacity: 0; transform: translateY(40px) scale(0.7); } }
 @keyframes sai { to { opacity: 0; transform: translateY(-30px) scale(0.9); } }
+
+/* ---------- palavrão (título gigante dos presentes grandes) ---------- */
+.palavrao {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(56px, 11vw, 190px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff 20%, #b99bff 70%, #6f8bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 28px rgba(150, 110, 255, 0.9));
+  pointer-events: none;
+  animation: palavrao-entra 0.9s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+.palavrao.sai { animation: fundo-sai 0.5s both; }
+@keyframes palavrao-entra { from { opacity: 0; transform: scale(1.6); letter-spacing: 0.4em; } }
 
 /* ---------- baú ---------- */
 #bau-cena {

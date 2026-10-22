@@ -181,10 +181,15 @@ const TIPOS = {
 };
 const ROTAS = { '/': '/painel.html', '/painel': '/painel.html', '/overlay': '/overlay.html', '/demo': '/demo.html' };
 // Módulos compartilhados com a página de demonstração (/demo), que roda as regras no navegador.
-const ARQUIVOS_RAIZ = { '/config.js': './config.js', '/regras.js': './regras.js' };
+const ARQUIVOS_RAIZ = { '/config.js': './config.js', '/regras.js': './regras.js', '/catalogo.js': './catalogo.js' };
 
 async function servirArquivo(req, res) {
   const { pathname } = new URL(req.url, 'http://localhost');
+  if (pathname === '/catalogo.json') {
+    res.writeHead(200, { 'content-type': TIPOS['.json'] });
+    res.end(JSON.stringify(config.catalogo));
+    return;
+  }
   const raiz = ARQUIVOS_RAIZ[pathname];
   const caminho = raiz ? fileURLToPath(new URL(raiz, import.meta.url)) : normalize(join(PUBLIC_DIR, ROTAS[pathname] ?? pathname));
   if (!raiz && !caminho.startsWith(PUBLIC_DIR)) {

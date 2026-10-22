@@ -1,5 +1,5 @@
 // Overlay da live: recebe ações do servidor e desenha efeitos na tela.
-// Nunca decide nada sozinho; as regras ficam em config.js (servidor).
+// Nunca decide nada sozinho; as regras ficam em config.js e regras.js.
 
 const params = new URLSearchParams(location.search);
 if (params.has('fundo')) document.body.classList.add('fundo');
@@ -12,8 +12,10 @@ const ctx = tela.getContext('2d');
 const CORES_RARIDADE = { comum: '#b8c4d6', raro: '#4aa3ff', epico: '#b46bff', lendario: '#ffc233' };
 const NOME_RARIDADE = { comum: 'Baú comum', raro: 'Baú raro', epico: 'Baú épico', lendario: 'Baú lendário' };
 const CONFETE = ['#25f4ee', '#fe2c55', '#ffc233', '#ffffff', '#7cff6b', '#b46bff'];
+const ICONE_EFEITO = { flutuar: '💖', explosao: '✨', chuva: '⭐', confete: '🎉', fogos: '🎆', tremor: '💥', correr: '🐾', dinheiro: '💵', galaxia: '🌌' };
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
+const sortear = (lista) => lista[Math.floor(Math.random() * lista.length)];
 
 // ---------- som (sintetizado, sem arquivos) ----------
 let audio;
@@ -38,46 +40,73 @@ function tocar(notas, { tipo = 'triangle', passo = 0.09, vol = 0.12 } = {}) {
   }
 }
 const SONS = {
+  flutuar: () => tocar([880, 1175], { passo: 0.07, vol: 0.08 }),
+  explosao: () => tocar([330, 495, 660, 990], { passo: 0.05, vol: 0.08 }),
   confete: () => tocar([523, 659, 784]),
-  coracoes: () => tocar([784, 988, 1175]),
   chuva: () => tocar([440, 554, 659, 880]),
   fogos: () => tocar([196, 392, 784, 1175], { tipo: 'sawtooth', passo: 0.07, vol: 0.07 }),
   tremor: () => tocar([110, 98, 82], { tipo: 'square', passo: 0.12, vol: 0.1 }),
+  correr: () => tocar([220, 277, 330, 277, 220, 277], { tipo: 'square', passo: 0.1, vol: 0.04 }),
+  dinheiro: () => tocar([1568, 2093, 2637], { passo: 0.07, vol: 0.08 }),
+  galaxia: () => tocar([196, 247, 294, 392, 494, 587, 784, 988], { passo: 0.12, vol: 0.07 }),
   bauAbre: () => tocar([392, 523, 659, 784, 1047], { passo: 0.1 }),
   bauBalanca: () => tocar([140, 120, 140, 120], { tipo: 'square', passo: 0.12, vol: 0.06 }),
 };
 
-// ---------- partículas ----------
+// ---------- motor de partículas ----------
+// Velocidades são em "pixels por quadro a 60 fps" e escalam com o tempo real (OBS costuma rodar a 30 fps).
 const particulas = [];
+const camadas = new Set(); // desenhos de fundo (ex.: galáxia): função que devolve false ao terminar
 let rodando = false;
+let ultimo = 0;
 
+// L e A: largura e altura da área de desenho (no OBS, a janela inteira; na demo, só o palco).
+let L = 0;
+let A = 0;
 function ajustarTela() {
-  tela.width = innerWidth * devicePixelRatio;
-  tela.height = innerHeight * devicePixelRatio;
+  L = tela.clientWidth || innerWidth;
+  A = tela.clientHeight || innerHeight;
+  tela.width = L * devicePixelRatio;
+  tela.height = A * devicePixelRatio;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
 }
-addEventListener('resize', ajustarTela);
+new ResizeObserver(ajustarTela).observe(tela);
 ajustarTela();
+
+function acordar() {
+  if (rodando) return;
+  rodando = true;
+  ultimo = performance.now();
+  requestAnimationFrame(quadro);
+}
 
 function adicionar(p) {
   particulas.push({ vida: 1, decai: 0.004, g: 0.12, atrito: 1, rot: 0, vrot: 0, ...p });
-  if (!rodando) {
-    rodando = true;
-    requestAnimationFrame(quadro);
-  }
+  acordar();
 }
 
-function quadro() {
-  ctx.clearRect(0, 0, innerWidth, innerHeight);
+function camada(fn) {
+  camadas.add(fn);
+  acordar();
+}
+
+function quadro(agora) {
+  const k = Math.min(3, (agora - ultimo) / 16.67 || 1);
+  ultimo = agora;
+  ctx.clearRect(0, 0, L, A);
+
+  for (const fn of camadas) if (fn(ctx, agora) === false) camadas.delete(fn);
+
   for (let i = particulas.length - 1; i >= 0; i--) {
     const p = particulas[i];
-    p.vx *= p.atrito;
-    p.vy = p.vy * p.atrito + p.g;
-    p.x += p.vx;
-    p.y += p.vy;
-    p.rot += p.vrot;
-    p.vida -= p.decai;
-    if (p.vida <= 0 || p.y > innerHeight + 80 || p.y < -200) {
+    p.vx *= p.atrito ** k;
+    p.vy = p.vy * p.atrito ** k + p.g * k;
+    p.x += p.vx * k;
+    p.y += p.vy * k;
+    p.rot += p.vrot * k;
+    p.vida -= p.decai * k;
+    p.atualizar?.(p, k);
+    if (p.vida <= 0 || p.y > A + 120 || p.y < -240 || p.x < -1500 || p.x > L + 600) {
       particulas.splice(i, 1);
       continue;
     }
@@ -86,7 +115,7 @@ function quadro() {
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rot);
     if (p.emoji) {
-      ctx.font = `${p.tam}px serif`;
+      ctx.font = `${p.tam}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(p.emoji, 0, 0);
@@ -103,17 +132,19 @@ function quadro() {
     }
     ctx.restore();
   }
-  if (particulas.length) requestAnimationFrame(quadro);
+
+  if (particulas.length || camadas.size) requestAnimationFrame(quadro);
   else {
     rodando = false;
-    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ctx.clearRect(0, 0, L, A);
   }
 }
 
+// ---------- efeitos básicos ----------
 function confete(n = 140, cores = CONFETE, origem = null) {
   for (let i = 0; i < n; i++) {
     adicionar({
-      x: origem ? origem.x : rand(0, innerWidth),
+      x: origem ? origem.x : rand(0, L),
       y: origem ? origem.y : rand(-80, -10),
       vx: origem ? rand(-9, 9) : rand(-2, 2),
       vy: origem ? rand(-16, -4) : rand(1, 5),
@@ -128,31 +159,59 @@ function confete(n = 140, cores = CONFETE, origem = null) {
   }
 }
 
+// Emojis subindo do rodapé (com balanço) ou caindo do topo.
 function emojis(lista, n, { subindo = false } = {}) {
+  const base = lista.length ? lista : ['⭐'];
   for (let i = 0; i < n; i++) {
     setTimeout(() => {
+      const fase = rand(0, 6.28);
       adicionar({
-        emoji: lista[i % lista.length],
+        emoji: base[i % base.length],
         tam: rand(34, 72),
-        x: rand(40, innerWidth - 40),
-        y: subindo ? innerHeight + 40 : -50,
-        vx: rand(-1.2, 1.2),
+        x: rand(40, L - 40),
+        y: subindo ? A + 40 : -50,
+        vx: subindo ? 0 : rand(-1.2, 1.2),
         vy: subindo ? rand(-7, -3) : rand(2, 5),
         g: subindo ? -0.01 : 0.03,
         decai: subindo ? 0.0035 : 0.002,
         rot: rand(-0.3, 0.3),
         vrot: rand(-0.03, 0.03),
+        atualizar: subindo ? (p, k) => (p.x += Math.sin(p.y * 0.02 + fase) * 1.1 * k) : undefined,
       });
     }, i * 35);
+  }
+}
+
+// Emojis saindo do centro em todas as direções.
+function explodir(lista, n) {
+  const base = lista.length ? lista : ['✨'];
+  const cx = L / 2;
+  const cy = A * 0.45;
+  for (let i = 0; i < n; i++) {
+    const ang = rand(0, Math.PI * 2);
+    const vel = rand(4, 15);
+    adicionar({
+      emoji: base[i % base.length],
+      tam: rand(30, 64),
+      x: cx,
+      y: cy,
+      vx: Math.cos(ang) * vel,
+      vy: Math.sin(ang) * vel,
+      g: 0.16,
+      atrito: 0.975,
+      decai: 0.008,
+      rot: rand(-0.4, 0.4),
+      vrot: rand(-0.08, 0.08),
+    });
   }
 }
 
 function fogos(rajadas = 6) {
   for (let r = 0; r < rajadas; r++) {
     setTimeout(() => {
-      const x = rand(innerWidth * 0.15, innerWidth * 0.85);
-      const y = rand(innerHeight * 0.12, innerHeight * 0.5);
-      const cor = CONFETE[Math.floor(rand(0, CONFETE.length))];
+      const x = rand(L * 0.15, L * 0.85);
+      const y = rand(A * 0.12, A * 0.5);
+      const cor = sortear(CONFETE);
       for (let i = 0; i < 80; i++) {
         const ang = (i / 80) * Math.PI * 2;
         const vel = rand(2, 9);
@@ -160,6 +219,121 @@ function fogos(rajadas = 6) {
       }
     }, r * 450);
   }
+}
+
+// Bichos e veículos atravessando a tela da direita para a esquerda (a maioria dos emojis olha para a esquerda).
+// Devolve quanto tempo (ms) até o último sair da tela.
+function correr(a) {
+  const lista = a.emoji.length ? a.emoji : ['🐕'];
+  const tam = Math.max(90, Math.min(180, A * 0.14));
+  const y0 = A * 0.68;
+  const vx = lista.length > 1 ? -7 : -8; // px por quadro a 60 fps
+  const corredores = Math.min(5, Math.max(1, Math.ceil(a.quantidade / 5)));
+  const intervalo = 1100;
+  const rastro = a.rastro ?? [];
+
+  for (let c = 0; c < corredores; c++) {
+    setTimeout(() => {
+      lista.forEach((e, i) => {
+        let ultimoRastro = L;
+        adicionar({
+          emoji: e,
+          tam,
+          x: L + tam * (1 + i * 1.4),
+          y: y0,
+          vx,
+          vy: 0,
+          g: 0,
+          decai: 0,
+          atualizar: (p) => {
+            p.y = y0 + Math.sin(performance.now() * 0.012) * 9; // mesmo balanço para todos os vagões
+            if (i === 0 && rastro.length && ultimoRastro - p.x > 90) {
+              ultimoRastro = p.x;
+              adicionar({ emoji: sortear(rastro), tam: tam * 0.3, x: p.x + tam * 0.5, y: p.y + tam * 0.3, vx: 0, vy: rand(-0.4, 0.2), g: 0.02, decai: 0.014 });
+            }
+          },
+        });
+      });
+    }, c * intervalo);
+  }
+  const travessia = (L + tam * (lista.length * 1.4 + 2)) / (Math.abs(vx) * 0.06);
+  return travessia + (corredores - 1) * intervalo;
+}
+
+// Pistola de dinheiro: notas disparadas do canto inferior esquerdo.
+function dinheiro(quantidade) {
+  const n = Math.min(160, 60 + quantidade * 6);
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => {
+      adicionar({
+        emoji: i % 4 === 0 ? '💸' : '💵',
+        tam: rand(40, 68),
+        x: -30,
+        y: A * 0.86,
+        vx: rand(9, 24),
+        vy: rand(-26, -10),
+        g: 0.45,
+        rot: rand(-0.5, 0.5),
+        vrot: rand(-0.12, 0.12),
+        decai: 0.003,
+      });
+    }, i * 16);
+  }
+  return n * 16 + 1800;
+}
+
+// Galáxia em tela cheia: braços de estrelas girando em volta de um núcleo luminoso.
+function galaxia() {
+  const duracao = 7000;
+  const t0 = performance.now();
+  const estrelas = Array.from({ length: 1100 }, () => ({
+    r: Math.random() ** 0.6,
+    braco: Math.floor(Math.random() * 4),
+    desvio: rand(-0.5, 0.5),
+    tam: rand(0.8, 2.6),
+    tom: Math.random(),
+  }));
+
+  camada((c, agora) => {
+    const t = agora - t0;
+    if (t > duracao) return false;
+    const env = Math.max(0, Math.min(1, t / 800, (duracao - t) / 1000));
+    const cx = L / 2;
+    const cy = A / 2;
+    const R = Math.min(L, A) * 0.46;
+    const giro = t * 0.00035;
+
+    c.save();
+    c.globalAlpha = env * 0.6;
+    const vinheta = c.createRadialGradient(cx, cy, 0, cx, cy, Math.max(L, A) * 0.7);
+    vinheta.addColorStop(0, 'rgba(10, 4, 40, 0.75)');
+    vinheta.addColorStop(1, 'rgba(2, 0, 12, 0.2)');
+    c.fillStyle = vinheta;
+    c.fillRect(0, 0, L, A);
+
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha = env;
+    const nucleo = c.createRadialGradient(cx, cy, 0, cx, cy, R * 0.55);
+    nucleo.addColorStop(0, 'rgba(255, 240, 200, 0.95)');
+    nucleo.addColorStop(0.25, 'rgba(190, 140, 255, 0.45)');
+    nucleo.addColorStop(1, 'rgba(40, 20, 120, 0)');
+    c.fillStyle = nucleo;
+    c.beginPath();
+    c.arc(cx, cy, R * 0.55, 0, Math.PI * 2);
+    c.fill();
+
+    for (const e of estrelas) {
+      const ang = (e.braco * Math.PI) / 2 + e.r * 5.2 + e.desvio + giro * (1.6 - e.r);
+      const raio = e.r * R * 1.6;
+      c.fillStyle = `hsl(${240 + e.tom * 80 - (1 - e.r) * 60}, 90%, ${60 + (1 - e.r) * 30}%)`;
+      c.beginPath();
+      c.arc(cx + Math.cos(ang) * raio, cy + Math.sin(ang) * raio * 0.55, e.tam, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
+    return true;
+  });
+  return duracao;
 }
 
 // ---------- fila de ações ----------
@@ -189,24 +363,34 @@ async function processar() {
   processando = false;
 }
 
-async function aviso(texto, quem, icone = '') {
+async function aviso(acao, quem) {
   const el = document.createElement('div');
   el.className = 'aviso';
   if (quem?.avatar) {
     const img = document.createElement('img');
+    img.className = 'avatar';
     img.referrerPolicy = 'no-referrer';
     img.alt = '';
     img.src = quem.avatar;
     img.onerror = () => img.remove();
     el.append(img);
-  } else if (icone) {
+  }
+  if (acao.imagem) {
+    const img = document.createElement('img');
+    img.className = 'presente';
+    img.referrerPolicy = 'no-referrer';
+    img.alt = '';
+    img.src = acao.imagem;
+    img.onerror = () => img.remove();
+    el.append(img);
+  } else {
     const i = document.createElement('span');
     i.className = 'icone';
-    i.textContent = icone;
+    i.textContent = acao.emoji?.[0] || ICONE_EFEITO[acao.efeito] || '🎁';
     el.append(i);
   }
   const t = document.createElement('span');
-  t.textContent = texto;
+  t.textContent = acao.texto;
   el.append(t);
   $('avisos').append(el);
   await dormir(2800);
@@ -215,32 +399,61 @@ async function aviso(texto, quem, icone = '') {
   el.remove();
 }
 
+async function palavrao(texto, ms) {
+  const el = document.createElement('div');
+  el.className = 'palavrao';
+  el.textContent = texto;
+  palco.append(el);
+  await dormir(ms);
+  el.classList.add('sai');
+  await dormir(500);
+  el.remove();
+}
+
 const EFEITOS = {
-  async confete(a, q) {
-    SONS.confete();
-    confete();
-    await aviso(a.texto, q, '🎉');
+  async flutuar(a, q) {
+    SONS.flutuar();
+    emojis(a.emoji, Math.min(40, 4 + a.quantidade * 2), { subindo: true });
+    await aviso(a, q);
   },
-  async coracoes(a, q) {
-    SONS.coracoes();
-    emojis(['❤️', '💖', '💗', '💕'], 36, { subindo: true });
-    await aviso(a.texto, q, '💖');
+  async explosao(a, q) {
+    SONS.explosao();
+    explodir(a.emoji, Math.min(70, 24 + a.quantidade * 2));
+    await aviso(a, q);
   },
   async chuva(a, q) {
     SONS.chuva();
-    emojis(a.emoji?.length ? a.emoji : ['⭐'], 44);
-    await aviso(a.texto, q, a.emoji?.[0] ?? '⭐');
+    emojis(a.emoji, Math.min(70, 20 + a.quantidade * 3));
+    await aviso(a, q);
+  },
+  async confete(a, q) {
+    SONS.confete();
+    confete(Math.min(300, 120 + a.quantidade * 6));
+    await aviso(a, q);
   },
   async fogos(a, q) {
     SONS.fogos();
-    fogos();
-    await aviso(a.texto, q, '🎆');
+    fogos(a.rajadas ?? 6);
+    await aviso(a, q);
   },
   async tremor(a, q) {
     SONS.tremor();
     palco.classList.add('tremor');
     setTimeout(() => palco.classList.remove('tremor'), 850);
-    await aviso(a.texto, q, '💥');
+    await aviso(a, q);
+  },
+  async correr(a, q) {
+    SONS.correr();
+    await Promise.all([aviso(a, q), dormir(correr(a))]);
+  },
+  async dinheiro(a, q) {
+    SONS.dinheiro();
+    await Promise.all([aviso(a, q), dormir(dinheiro(a.quantidade))]);
+  },
+  async galaxia(a, q) {
+    SONS.galaxia();
+    const duracao = galaxia();
+    await Promise.all([aviso(a, q), palavrao(a.titulo || 'GALÁXIA', duracao - 1500), dormir(duracao)]);
   },
   async bau(a) {
     await abrirBau(a);
@@ -292,7 +505,8 @@ async function abrirBau(a) {
   wrap.classList.add('aberto');
   SONS.bauAbre();
   const caixa = wrap.getBoundingClientRect();
-  const origem = { x: caixa.left + caixa.width / 2, y: caixa.top + caixa.height * 0.4 };
+  const area = tela.getBoundingClientRect();
+  const origem = { x: caixa.left - area.left + caixa.width / 2, y: caixa.top - area.top + caixa.height * 0.4 };
   confete(a.raridade === 'lendario' ? 260 : 150, [cor, '#ffffff', '#ffe08a'], origem);
   if (a.raridade === 'lendario' || a.raridade === 'epico') fogos(a.raridade === 'lendario' ? 8 : 4);
   await dormir(700);

@@ -18,6 +18,7 @@
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   input { flex: 1 1 200px; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0f1117; color: var(--ink); font: inherit; }
+  select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0f1117; color: var(--ink); font: inherit; }
   button { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #222736; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
   button:hover { border-color: var(--accent); }
   button.primario { background: var(--accent); color: #04201f; border-color: var(--accent); }
@@ -67,22 +68,26 @@
 
   <section class="card">
     <h2>Testar sem estar ao vivo (simulação local)</h2>
-    <p class="dica" style="margin-top:0">Estes botões só disparam o efeito no seu overlay. Servem para ajustar o visual e as regras do <code>config.js</code>.</p>
+    <p class="dica" style="margin-top:0">Estes botões só disparam o efeito no seu overlay. Servem para ver cada presente e ajustar as regras do <code>config.js</code>.</p>
     <div class="linha" style="margin-bottom:12px">
       <input id="sim-nome" value="Maria" maxlength="30" aria-label="Nome do doador simulado">
+      <label class="dica" style="margin:0" for="sim-qtd">Sequência:</label>
+      <select id="sim-qtd" aria-label="Quantidade enviada em sequência">
+        <option value="1">x1</option><option value="5">x5</option><option value="10">x10</option><option value="30">x30</option>
+      </select>
     </div>
-    <div class="grade">
-      <button class="bau-btn" data-presente="Rose" data-diamantes="1">🌹 Rose<small>1 💎</small></button>
-      <button class="bau-btn" data-presente="Doughnut" data-diamantes="30">🍩 Doughnut<small>30 💎</small></button>
-      <button class="bau-btn" data-presente="GG" data-diamantes="1">💥 GG<small>tremor</small></button>
-      <button class="bau-btn" data-presente="Corgi" data-diamantes="25">🎆 Fogos<small>25 💎</small></button>
-      <button class="bau-btn" data-presente="Galaxy Globe" data-diamantes="99">📦 Baú comum<small>99 💎</small></button>
-      <button class="bau-btn" data-presente="Rosa Premium" data-diamantes="250">📦 Baú raro<small>250 💎</small></button>
-      <button class="bau-btn" data-presente="Sports Car" data-diamantes="500">📦 Baú épico<small>500 💎</small></button>
-      <button class="bau-btn" data-presente="Lion" data-diamantes="1500">📦 Baú lendário<small>1500 💎</small></button>
-      <button class="bau-btn" data-evento="seguidor">➕ Novo seguidor<small>grátis</small></button>
-      <button class="bau-btn" data-evento="compartilhou">🔁 Compartilhou<small>grátis</small></button>
+    <div class="grade" id="grade-presentes"></div>
+    <div class="linha" style="margin-top:12px">
+      <input id="sim-valor" type="number" min="1" max="1000" value="150" aria-label="Valor de um presente fora da lista" style="flex:0 1 110px">
+      <button type="button" id="sim-desconhecido">Presente fora da lista<small>efeito pelo valor</small></button>
+      <button type="button" class="bau-btn" data-evento="seguidor">Novo seguidor<small>grátis</small></button>
+      <button type="button" class="bau-btn" data-evento="compartilhou">Compartilhou<small>grátis</small></button>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>Últimos envios</h2>
+    <ol id="feed" style="margin:0;padding-left:20px"><li class="dica" style="list-style:none;margin-left:-20px">Nenhum envio ainda.</li></ol>
   </section>
 </main>
 
@@ -106,6 +111,8 @@
         $('ponto').className = `ponto ${m.status}`;
         $('status-texto').textContent = m.mensagem || { parado: 'Parado', conectado: 'Conectado', conectando: 'Conectando…', erro: 'Erro' }[m.status];
         if (m.usuario && !$('usuario').value) $('usuario').value = m.usuario;
+      } else if (m.tipo === 'presente') {
+        registrar(m);
       } else if (m.tipo === 'estado') {
         $('meta-info').textContent = `${m.metaTexto}: ${m.progresso} / ${m.meta} 💎 (metas batidas: ${m.metasBatidas})`;
         $('barra').style.width = `${Math.min(100, (m.progresso / m.meta) * 100)}%`;
@@ -125,13 +132,42 @@
   $('desconectar').addEventListener('click', () => enviar({ tipo: 'desconectar' }));
   $('zerar').addEventListener('click', () => enviar({ tipo: 'zerar' }));
 
-  document.querySelectorAll('[data-presente], [data-evento]').forEach((b) => {
-    b.addEventListener('click', () => {
-      const nome = $('sim-nome').value.trim() || 'Visitante';
-      if (b.dataset.evento) enviar({ tipo: 'simular', evento: b.dataset.evento, nome });
-      else enviar({ tipo: 'simular', evento: 'presente', nome, presente: b.dataset.presente, diamantes: Number(b.dataset.diamantes) });
-    });
+  const ROTULO_EFEITO = { flutuar: 'sobe flutuando', explosao: 'explosão', chuva: 'chuva', confete: 'confete', fogos: 'fogos', tremor: 'a tela treme', correr: 'atravessa a tela', dinheiro: 'chuva de notas', galaxia: 'galáxia na tela' };
+  const nomeSim = () => $('sim-nome').value.trim() || 'Visitante';
+  const qtdSim = () => Number($('sim-qtd').value) || 1;
+
+  fetch('/catalogo.json').then((r) => r.json()).then((catalogo) => {
+    const grade = $('grade-presentes');
+    for (const g of catalogo) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'bau-btn';
+      b.textContent = `${g.emoji?.[0] ?? '🎁'} ${g.pt}`;
+      const s = document.createElement('small');
+      s.textContent = `${g.moedas} 💎 · ${ROTULO_EFEITO[g.efeito] ?? g.efeito}`;
+      b.append(s);
+      b.addEventListener('click', () => enviar({ tipo: 'simular', evento: 'presente', nome: nomeSim(), presente: g.nome, diamantes: g.moedas, quantidade: qtdSim() }));
+      grade.append(b);
+    }
   });
+
+  $('sim-desconhecido').addEventListener('click', () => {
+    const valor = Math.max(1, Math.min(1000, Number($('sim-valor').value) || 1));
+    enviar({ tipo: 'simular', evento: 'presente', nome: nomeSim(), presente: 'Presente novo', diamantes: valor, quantidade: qtdSim() });
+  });
+  document.querySelectorAll('[data-evento]').forEach((b) => {
+    b.addEventListener('click', () => enviar({ tipo: 'simular', evento: b.dataset.evento, nome: nomeSim() }));
+  });
+
+  function registrar(m) {
+    const feed = $('feed');
+    if (!feed.firstElementChild?.dataset.registro) feed.replaceChildren();
+    const li = document.createElement('li');
+    li.dataset.registro = '1';
+    li.textContent = `${m.nome}: ${m.presente}${m.quantidade > 1 ? ` x${m.quantidade}` : ''} (${m.diamantes} 💎) → ${m.acoes.map((a) => ROTULO_EFEITO[a.efeito] ?? (a.efeito === 'bau' ? `baú ${a.raridade}` : a.efeito)).join(' + ')}`;
+    feed.prepend(li);
+    while (feed.children.length > 15) feed.lastElementChild.remove();
+  }
 </script>
 </body>
 </html>

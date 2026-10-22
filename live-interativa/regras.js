@@ -1,10 +1,22 @@
 // Regras da live (sem rede, sem Node): transforma presentes em ações e mantém meta e ranking.
-// Usado pelo servidor (server.js) e pela página de demonstração (demo/).
+// Usado pelo servidor (server.js) e pela página de demonstração (public/demo.html).
 
 const sortear = (lista) => lista[Math.floor(Math.random() * lista.length)];
 const preencher = (texto, nome) => String(texto || '').replaceAll('{nome}', nome);
+const normalizar = (t) =>
+  String(t || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 
 export function criarMotor(config, transmitir) {
+  // Nome do presente (em inglês, português ou apelido) -> item do catálogo.
+  const indice = new Map();
+  for (const item of config.catalogo) {
+    for (const n of [item.nome, item.pt, ...(item.nomes ?? [])]) indice.set(normalizar(n), item);
+  }
+
   const estado = {
     total: 0,
     metaAtual: config.meta.alvo,
@@ -27,35 +39,58 @@ export function criarMotor(config, transmitir) {
     };
   }
 
-  function decidirAcao({ nome, presente, diamantes }) {
-    let regra = config.presentes[presente.toLowerCase()];
-    if (!regra) {
-      const valor = Math.max(diamantes, 1);
-      regra = [...config.faixas].reverse().find((f) => valor >= f.min) ?? config.faixas[0];
+  // Um envio vira uma lista de ações: o efeito do presente e, se o valor total pedir, um baú.
+  function decidirAcoes({ nome, presente, imagem, diamantes, quantidade }) {
+    const qtd = Math.max(1, quantidade || 1);
+    const unitario = Math.max(1, Math.round(diamantes / qtd));
+    const item = indice.get(normalizar(presente));
+    const regra = item ?? [...config.porValor].reverse().find((f) => unitario >= f.min) ?? config.porValor[0];
+    const rotulo = item?.pt ?? presente;
+
+    const acoes = [
+      {
+        efeito: regra.efeito,
+        emoji: regra.emoji ?? [],
+        rastro: regra.rastro ?? [],
+        rajadas: regra.rajadas,
+        quantidade: qtd,
+        imagem,
+        titulo: rotulo.toUpperCase(),
+        texto: `${nome} mandou ${rotulo}${qtd > 1 ? ` x${qtd}` : ''}!`,
+      },
+    ];
+
+    const bau = [...config.baus].reverse().find((b) => diamantes >= b.min);
+    if (bau) {
+      acoes.push({
+        efeito: 'bau',
+        raridade: bau.raridade,
+        texto: preencher(bau.texto, nome),
+        premio: sortear(config.premios[bau.raridade] ?? config.premios.comum),
+      });
     }
-    const acao = { efeito: regra.efeito, texto: preencher(regra.texto, nome), emoji: regra.emoji };
-    if (regra.efeito === 'bau') {
-      acao.raridade = regra.raridade || 'comum';
-      acao.premio = sortear(config.premios[acao.raridade] ?? config.premios.comum);
-    }
-    return acao;
+    return acoes;
   }
 
   function processarPresente({ nome, avatar, presente, imagem, diamantes, quantidade }) {
     estado.total += diamantes;
     estado.ranking.set(nome, (estado.ranking.get(nome) || 0) + diamantes);
 
-    const acoes = [decidirAcao({ nome, presente, diamantes })];
+    const acoes = decidirAcoes({ nome, presente, imagem, diamantes, quantidade });
 
-    // Meta batida (pode bater mais de uma de uma vez em presentes grandes).
+    // Meta batida (um presente grande pode bater mais de uma, mas vira um único baú).
+    let batidas = 0;
     while (estado.total >= estado.metaAtual) {
       estado.total -= estado.metaAtual;
       estado.metasBatidas += 1;
       estado.metaAtual = Math.round(estado.metaAtual * config.meta.multiplicador);
+      batidas += 1;
+    }
+    if (batidas) {
       acoes.push({
         efeito: 'bau',
         raridade: 'lendario',
-        texto: 'META BATIDA! Obrigado, chat!',
+        texto: batidas > 1 ? `META BATIDA x${batidas}! Obrigado, chat!` : 'META BATIDA! Obrigado, chat!',
         premio: sortear(config.premios.lendario),
         meta: true,
       });
@@ -68,7 +103,7 @@ export function criarMotor(config, transmitir) {
   function processarExtra(tipo, nome, avatar) {
     const regra = config.extras[tipo];
     if (!regra) return;
-    transmitir({ tipo, nome, avatar, acoes: [{ efeito: regra.efeito, texto: preencher(regra.texto, nome) }] });
+    transmitir({ tipo, nome, avatar, acoes: [{ efeito: regra.efeito, emoji: regra.emoji ?? [], quantidade: 1, texto: preencher(regra.texto, nome) }] });
   }
 
   function zerar() {
@@ -84,13 +119,14 @@ export function criarMotor(config, transmitir) {
     const nome = String(msg.nome || 'Visitante').slice(0, 30);
     if (msg.evento === 'presente') {
       const diamantes = Math.max(1, Math.min(Number(msg.diamantes) || 1, 100000));
+      const quantidade = Math.max(1, Math.min(Number(msg.quantidade) || 1, 999));
       processarPresente({
         nome,
         avatar: '',
         presente: String(msg.presente || 'Presente').slice(0, 40),
         imagem: '',
-        diamantes,
-        quantidade: 1,
+        diamantes: diamantes * quantidade,
+        quantidade,
       });
     } else if (msg.evento === 'seguidor' || msg.evento === 'compartilhou') {
       processarExtra(msg.evento, nome, '');

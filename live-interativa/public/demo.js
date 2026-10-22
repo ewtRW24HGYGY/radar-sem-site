@@ -26,14 +26,29 @@ window.WebSocket = WebSocketFalso;
 // ---------- botões ----------
 const $ = (id) => document.getElementById(id);
 
-document.querySelectorAll('[data-presente], [data-evento]').forEach((b) => {
-  b.addEventListener('click', () => {
-    $('dica').hidden = true;
-    const nome = $('sim-nome').value.trim() || 'Visitante';
-    if (b.dataset.evento) motor.simular({ evento: b.dataset.evento, nome });
-    else motor.simular({ evento: 'presente', nome, presente: b.dataset.presente, diamantes: Number(b.dataset.diamantes) });
-  });
+const ROTULO_EFEITO = { flutuar: 'sobe flutuando', explosao: 'explosão', chuva: 'chuva', confete: 'confete', fogos: 'fogos', tremor: 'a tela treme', correr: 'atravessa a tela', dinheiro: 'chuva de notas', galaxia: 'galáxia na tela' };
+const nome = () => $('sim-nome').value.trim() || 'Visitante';
+const quantidade = () => Number($('sim-qtd').value) || 1;
+const disparar = (msg) => {
+  $('dica').hidden = true;
+  motor.simular({ nome: nome(), ...msg });
+};
+
+for (const g of config.catalogo) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = `${g.emoji?.[0] ?? '🎁'} ${g.pt}`;
+  const s = document.createElement('small');
+  s.textContent = `${g.moedas} 💎 · ${ROTULO_EFEITO[g.efeito] ?? g.efeito}`;
+  b.append(s);
+  b.addEventListener('click', () => disparar({ evento: 'presente', presente: g.nome, diamantes: g.moedas, quantidade: quantidade() }));
+  $('grade-presentes').append(b);
+}
+$('sim-desconhecido').addEventListener('click', () => {
+  const valor = Math.max(1, Math.min(1000, Number($('sim-valor').value) || 1));
+  disparar({ evento: 'presente', presente: 'Presente novo', diamantes: valor, quantidade: quantidade() });
 });
+document.querySelectorAll('[data-evento]').forEach((b) => b.addEventListener('click', () => disparar({ evento: b.dataset.evento })));
 $('zerar').addEventListener('click', () => motor.zerar());
 
 // O overlay abre o WebSocket ao carregar, então só entra depois do canal falso estar instalado.
