@@ -76,141 +76,159 @@ body.fundo {
 #ranking li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
 #ranking li:nth-child(1) span:last-child { color: var(--lendario); }
 
-/* ---------- urnas ---------- */
-#urnas {
+/* ---------- urnas: duas máquinas de votação com caixa de cédulas ---------- */
+#urnas { position: absolute; left: 28px; right: 28px; bottom: 28px; height: 0; pointer-events: none; }
+.estacao {
+  --nivel: 0;
   position: absolute;
-  top: 118px;
-  left: 28px;
-  width: 310px;
-  padding: 12px 14px 10px;
-  border-radius: 16px;
-  background: var(--glass);
-  backdrop-filter: blur(6px);
+  bottom: 0;
+  width: 360px;
+  padding: 10px 12px 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #2a2e3b, #1b1e27);
+  border-top: 4px solid var(--cor);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-.urnas-barra { display: flex; height: 10px; margin-bottom: 10px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, 0.14); }
-.urnas-barra span { display: block; height: 100%; transition: width 0.6s cubic-bezier(0.2, 0.9, 0.3, 1); }
-.urnas-lados { display: grid; gap: 6px; }
-.urna {
-  display: grid;
-  grid-template-columns: 56px auto 1fr auto;
-  grid-template-areas: "caixa numero nome votos" "caixa numero pct votos";
-  align-items: center;
-  column-gap: 10px;
-  text-align: left;
-}
-.urna-caixa { grid-area: caixa; position: relative; width: 56px; height: 56px; }
-.urna-caixa svg { position: relative; z-index: 1; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); }
-.urna .corpo { fill: var(--cor); }
-.urna .tampa { fill: color-mix(in srgb, var(--cor) 72%, #000); }
-.urna .fenda { fill: #0b0c12; }
-.urna .numero { grid-area: numero; font-size: 34px; font-weight: 900; line-height: 1; color: var(--cor); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
-.urna .nome { grid-area: nome; align-self: end; font-size: 14px; opacity: 0.9; }
-.urna .pct { grid-area: pct; align-self: start; font-size: 13px; opacity: 0.7; }
-.urna .votos { grid-area: votos; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.urna .votos.pop { animation: pop 0.35s ease-out; }
+.estacao.esq { left: 0; transform-origin: bottom left; }
+.estacao.dir { right: 0; transform-origin: bottom right; }
+.estacao-topo { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "numero nome votos" "numero pct votos"; column-gap: 10px; align-items: center; margin-bottom: 8px; }
+.estacao-topo .numero { grid-area: numero; font-size: 40px; font-weight: 900; line-height: 1; color: var(--cor); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.estacao-topo .nome { grid-area: nome; align-self: end; font-size: 15px; font-weight: 600; }
+.estacao-topo .pct { grid-area: pct; align-self: start; font-size: 13px; opacity: 0.7; }
+.estacao-topo .votos { grid-area: votos; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.estacao-topo .votos.pop { animation: pop 0.35s ease-out; }
 @keyframes pop { 40% { transform: scale(1.25); } }
-.cedula {
-  position: absolute;
-  left: 50%;
-  top: -8px;
-  z-index: 0;
-  width: 26px;
-  height: 34px;
-  margin-left: -13px;
-  border-radius: 3px;
-  border: 2px solid var(--cor);
-  background: #ffffff;
-  animation: cai 0.7s ease-in forwards;
-}
-@keyframes cai {
-  0% { transform: translateY(-46px) rotate(-14deg); opacity: 0; }
-  20% { opacity: 1; }
-  70% { transform: translateY(20px) rotate(4deg); opacity: 1; }
-  100% { transform: translateY(32px) rotate(0); opacity: 0; }
-}
-.mais {
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  z-index: 2;
-  translate: -50% 0;
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--cor);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-  animation: sobe-mais 1s ease-out forwards;
-}
-@keyframes sobe-mais { from { opacity: 0; transform: translateY(14px); } 20% { opacity: 1; } to { opacity: 0; transform: translateY(-52px); } }
-.urnas-legenda { margin: 8px 0 0; font-size: 12px; line-height: 1.35; opacity: 0.85; text-align: center; }
-.urnas-legenda span { display: block; }
-.urnas-legenda span + span { margin-top: 2px; opacity: 0.7; font-size: 11px; }
+.estacao-corpo { display: grid; grid-template-columns: 1fr 78px; gap: 10px; }
 
-/* ---------- teclado com duas mãos ---------- */
-#teclado {
-  --cor: var(--accent);
-  position: absolute;
-  left: 28px;
-  bottom: 28px;
-  width: 310px;
-  padding: 12px 14px 14px;
-  border-radius: 16px;
-  background: var(--glass);
-  backdrop-filter: blur(6px);
-}
 .visor {
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: 40px;
-  margin-bottom: 10px;
-  padding: 0 12px;
-  border-radius: 10px;
+  gap: 10px;
+  height: 38px;
+  margin-bottom: 8px;
+  padding: 0 10px;
+  border-radius: 8px;
   background: #05070d;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
 }
-.digitos { display: flex; gap: 6px; }
+.digitos { display: flex; gap: 5px; }
 .digitos b {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 28px;
+  width: 22px;
+  height: 26px;
   border-bottom: 2px solid rgba(255, 255, 255, 0.35);
-  font: 800 24px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: 800 22px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color: var(--cor);
 }
-.visor-texto { overflow: hidden; font-size: 14px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; opacity: 0.85; }
-#teclado.confirmado .visor-texto { color: var(--cor); opacity: 1; }
-.teclas { display: grid; grid-template-columns: repeat(5, 1fr) 1.5fr; grid-auto-rows: 38px; gap: 6px; }
+.visor-texto { overflow: hidden; font-size: 13px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; opacity: 0.85; }
+.estacao.confirmado .visor-texto { color: var(--cor); opacity: 1; }
+.teclas { display: grid; grid-template-columns: repeat(5, 1fr) 1.45fr; grid-auto-rows: 36px; gap: 5px; }
 .tecla {
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  background: linear-gradient(#3a3f52, #2a2e3d);
-  box-shadow: 0 3px 0 #15171f;
-  font-size: 18px;
+  border-radius: 7px;
+  background: linear-gradient(#444a5e, #2c3040);
+  box-shadow: 0 3px 0 #12141b, inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  font-size: 17px;
   font-weight: 800;
   transition: transform 0.08s, box-shadow 0.08s, background 0.08s;
 }
-.tecla.votar { grid-column: 6; grid-row: 1 / span 2; font-size: 14px; letter-spacing: 0.06em; background: linear-gradient(#2fbf71, #1f8f52); box-shadow: 0 3px 0 #0f5a32; }
-.tecla.apertada { transform: translateY(3px); box-shadow: 0 0 0 #15171f; background: var(--cor); color: #0b0c12; }
+.tecla.votar { grid-column: 6; grid-row: 1 / span 2; font-size: 13px; letter-spacing: 0.06em; background: linear-gradient(#2fbf71, #1f8f52); box-shadow: 0 3px 0 #0f5a32, inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+.tecla.apertada { transform: translateY(3px); box-shadow: 0 0 0 #12141b; background: var(--cor); color: #0b0c12; }
+
+/* Caixa de acrílico: a pilha de cédulas sobe conforme os votos (--nivel, relativo ao lado que lidera). */
+.caixa-votos {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px 6px 8px 8px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-top-width: 8px;
+  border-top-color: color-mix(in srgb, var(--cor) 70%, #000);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 40%, rgba(255, 255, 255, 0.12));
+}
+.caixa-votos::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; border-radius: 0 0 3px 3px; background: #05070d; }
+.pilha {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 4px;
+  height: calc(var(--nivel) * 100% - var(--nivel) * 12px);
+  border-radius: 2px;
+  background: repeating-linear-gradient(0deg, #ffffff 0 3px, #d5dae4 3px 4px);
+  box-shadow: 0 -2px 0 rgba(255, 255, 255, 0.6);
+  transition: height 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.cedula {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  width: 30px;
+  height: 22px;
+  margin-left: -15px;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  animation: cai 0.8s ease-in forwards;
+}
+.cedula::after { content: ""; position: absolute; inset: 5px 6px; border-top: 2px solid var(--cor); border-bottom: 2px solid #c7ccd6; }
+@keyframes cai {
+  0% { transform: translateY(0) rotate(-10deg); }
+  100% { transform: translateY(calc((1 - var(--nivel)) * 100px)) rotate(8deg); opacity: 0.2; }
+}
+.mais {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  translate: -50% 0;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--cor);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  animation: sobe-mais 1s ease-out forwards;
+}
+@keyframes sobe-mais { from { opacity: 0; transform: translateY(14px); } 20% { opacity: 1; } to { opacity: 0; transform: translateY(-30px); } }
+
+/* Mãos: entram por baixo, em primeira pessoa. (--x, --y) é onde fica a ponta do dedo. */
 .mao {
   position: absolute;
   left: 0;
   top: 0;
   z-index: 3;
-  width: 46px;
-  height: 46px;
-  margin: -42px 0 0 -18px; /* ponta do dedo no ponto (--x, --y) */
-  font-size: 44px;
-  line-height: 1;
-  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.5));
-  transform: translate(var(--x, 0), calc(var(--y, 0) + var(--dy, 0px))) scale(calc(var(--espelho, 1) * var(--escala, 1)), var(--escala, 1));
-  transition: transform 0.22s cubic-bezier(0.3, 0.8, 0.3, 1);
-  pointer-events: none;
+  width: 84px;
+  height: 252px;
+  margin: -6px 0 0 -42px;
+  transform-origin: 50% 2%;
+  transform: translate(var(--x, 0), calc(var(--y, 0) + var(--dy, 0px))) rotate(var(--giro, 0deg)) scale(calc(var(--espelho, 1) * var(--escala, 1)), var(--escala, 1));
+  transition: transform 0.25s cubic-bezier(0.3, 0.8, 0.3, 1);
+  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.5));
 }
-.mao.direita { --espelho: -1; }
-.mao.aperta { --dy: 7px; --escala: 0.92; transition-duration: 0.08s; }
+.mao svg { width: 100%; height: 100%; overflow: visible; }
+.mao.esquerda { --espelho: -1; }
+.mao.aperta { --dy: 4px; --escala: 0.95; transition-duration: 0.08s; }
+.mao .manga { fill: #1f2a44; }
+.mao .punho { fill: #2d3b5c; }
+.mao .unha { fill: #f2d3c6; stroke: #d9ab98; stroke-width: 0.8; }
+.mao .brilho-unha { fill: none; stroke: rgba(255, 255, 255, 0.7); stroke-width: 1.4; stroke-linecap: round; }
+.mao .dobra { fill: none; stroke: rgba(122, 64, 40, 0.45); stroke-width: 1.3; stroke-linecap: round; }
+.mao .tendao { fill: none; stroke: rgba(122, 64, 40, 0.16); stroke-width: 2.2; stroke-linecap: round; }
+
+.urnas-legenda {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(420px, calc(100% - 780px));
+  margin: 0;
+  translate: -50% 0;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+.urnas-legenda span { display: block; }
+.urnas-legenda span + span { margin-top: 2px; opacity: 0.75; font-size: 12px; }
 
 /* ---------- avisos (toasts) ---------- */
 #avisos {
@@ -328,4 +346,14 @@ body.fundo {
 
 @media (prefers-reduced-motion: reduce) {
   #palco.tremor, .bau-wrap.treme .bau-svg, .bau-wrap.aberto .brilho, .cedula, .mais { animation: none; }
+  .mao, .pilha { transition: none; }
+}
+
+@media (max-width: 1100px) {
+  .urnas-legenda { display: none; }
+}
+
+/* No OBS em 1920x1080 as máquinas ficam maiores. */
+@media (min-width: 1600px) {
+  .estacao { scale: 1.3; }
 }

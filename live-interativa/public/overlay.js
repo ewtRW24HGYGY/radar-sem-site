@@ -548,85 +548,186 @@ function desenharEstado(s) {
   $('ranking').hidden = s.ranking.length === 0;
 }
 
-// ---------- urnas ----------
-const URNA_SVG = `
-<svg viewBox="0 0 84 84" aria-hidden="true">
-  <rect class="corpo" x="12" y="34" width="60" height="46" rx="6"/>
-  <rect x="12" y="52" width="60" height="4" fill="rgba(0,0,0,0.18)"/>
-  <rect class="tampa" x="6" y="26" width="72" height="12" rx="4"/>
-  <rect class="fenda" x="25" y="30" width="34" height="4" rx="2"/>
+// ---------- urnas: duas máquinas de votação, cada uma com sua caixa e um par de mãos ----------
+// Cada voto vira uma sequência na máquina do lado: as mãos digitam o número e apertam VOTAR; só então
+// a cédula cai na caixa e o placar muda. As máquinas trabalham em paralelo. Votos em excesso pulam a
+// animação, mas cada voto traz o placar do momento, então o número final é sempre o certo.
+
+// Mão direita vista por trás, indicador apontando para cima; a ponta do dedo fica em (60, 8).
+const MAO_SVG = `
+<svg viewBox="0 0 120 360" aria-hidden="true">
+  <path class="manga" d="M28 246 Q64 232 102 246 L108 360 L22 360 Z"/>
+  <path class="punho" d="M28 246 Q64 232 102 246 L101 258 Q64 245 29 258 Z"/>
+  <path fill="url(#mao-pele)" d="M38 198 L34 250 Q64 240 96 250 L91 198 Z"/>
+  <path fill="url(#mao-pele)" d="M32 138 C16 146 10 170 22 186 C30 196 41 190 41 178 C39 166 41 154 45 146 Z"/>
+  <path fill="url(#mao-pele)" d="M30 122 C26 152 28 190 38 214 L90 214 C101 190 103 150 97 120 C88 104 40 104 30 122 Z"/>
+  <ellipse fill="url(#mao-pele)" cx="78" cy="114" rx="11" ry="10"/>
+  <ellipse fill="url(#mao-pele)" cx="90" cy="121" rx="9.5" ry="9.5"/>
+  <ellipse fill="url(#mao-pele)" cx="98" cy="133" rx="7.5" ry="8.5"/>
+  <path fill="url(#mao-pele)" d="M46 120 C45 90 46 50 48 22 C49 6 71 6 72 22 C74 50 74 90 70 120 Z"/>
+  <path class="unha" d="M52 31 C52 16 68 16 68 31 L67 41 C64 45 56 45 53 41 Z"/>
+  <path class="brilho-unha" d="M55 24 C56 20 60 19 62 21"/>
+  <path class="dobra" d="M50 64 Q60 69 70 64 M49 94 Q60 100 71 94 M70 122 Q78 127 86 124 M84 128 Q91 133 97 131"/>
+  <path class="tendao" d="M57 132 L55 198 M70 131 L69 198 M83 134 L82 196"/>
 </svg>`;
-let urnasMontadas = '';
-const ultimaCedula = {};
+const DEFS_MAO = `
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="mao-pele" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c98f6b"/><stop offset="0.45" stop-color="#f2c4a2"/><stop offset="1" stop-color="#cf9572"/>
+    </linearGradient>
+  </defs>
+</svg>`;
 
-function desenharUrnas(u) {
-  $('urnas').hidden = false;
-  if (!teclado) montarTeclado(Math.max(...u.lados.map((l) => l.numero.length)));
-  const chave = u.lados.map((l) => l.id).join();
-  if (chave !== urnasMontadas) {
-    urnasMontadas = chave;
-    $('urnas-lados').replaceChildren(
-      ...u.lados.map((l) => {
-        const el = document.createElement('div');
-        el.className = 'urna';
-        el.dataset.lado = l.id;
-        el.style.setProperty('--cor', l.cor);
-        el.innerHTML = `<div class="urna-caixa">${URNA_SVG}</div><div class="numero"></div><div class="nome"></div><div class="votos"></div><div class="pct"></div>`;
-        return el;
-      }),
-    );
-    $('urnas-barra').replaceChildren(
-      ...u.lados.map((l) => {
-        const seg = document.createElement('span');
-        seg.dataset.lado = l.id;
-        seg.style.background = l.cor;
-        return seg;
-      }),
-    );
-  }
+const estacoes = new Map(); // id do lado -> { el, fila, ocupada }
+const exibidos = {}; // votos mostrados em cada máquina
+let ultimoPlacar = null;
+let votosPorPresente = 0;
 
-  const total = u.lados.reduce((soma, l) => soma + l.votos, 0);
-  for (const l of u.lados) {
-    const pct = total ? (l.votos / total) * 100 : 100 / u.lados.length;
-    $('urnas-barra').querySelector(`[data-lado="${l.id}"]`).style.width = `${pct}%`;
-    const el = $('urnas-lados').querySelector(`[data-lado="${l.id}"]`);
+function montarUrnas(u) {
+  const caixa = $('urnas');
+  caixa.innerHTML = DEFS_MAO;
+  votosPorPresente = u.votosPorPresente;
+  u.lados.forEach((l, i) => {
+    const el = document.createElement('div');
+    el.className = `estacao ${i === 0 ? 'esq' : 'dir'}`;
+    el.style.setProperty('--cor', l.cor);
+    el.innerHTML = `
+      <header class="estacao-topo"><b class="numero"></b><span class="nome"></span><span class="votos">0</span><span class="pct"></span></header>
+      <div class="estacao-corpo">
+        <div class="maquina">
+          <div class="visor"><span class="digitos">${'<b></b>'.repeat(l.numero.length)}</span><span class="visor-texto"></span></div>
+          <div class="teclas">
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => `<div class="tecla" data-tecla="${n}">${n}</div>`).join('')}
+            <div class="tecla votar" data-tecla="votar">VOTAR</div>
+          </div>
+        </div>
+        <div class="caixa-votos"><div class="pilha"></div></div>
+      </div>
+      <div class="mao esquerda">${MAO_SVG}</div>
+      <div class="mao direita">${MAO_SVG}</div>`;
     el.querySelector('.numero').textContent = l.numero;
     el.querySelector('.nome').textContent = l.nome;
-    el.querySelector('.pct').textContent = `${Math.round(pct)}%`;
-    const votos = el.querySelector('.votos');
-    if (votos.textContent !== String(l.votos)) {
-      votos.textContent = l.votos;
-      votos.classList.remove('pop');
-      void votos.offsetWidth; // reinicia a animação
-      votos.classList.add('pop');
-    }
-  }
-
-  const numeros = u.lados.map((l) => l.numero).join(' ou ');
-  const legenda = $('urnas-legenda');
-  legenda.replaceChildren();
+    caixa.append(el);
+    estacoes.set(l.id, { el, fila: [], ocupada: false });
+  });
+  const legenda = document.createElement('p');
+  legenda.className = 'urnas-legenda';
   for (const linha of [
-    `Digite ${numeros} no chat: 1 voto grátis por pessoa. Cada presente do lado vale ${u.votosPorPresente} votos.`,
+    `Digite ${u.lados.map((l) => l.numero).join(' ou ')} no chat: 1 voto grátis por pessoa. Cada presente do lado vale ${u.votosPorPresente} votos.`,
     'Brincadeira de teste. Não é pesquisa eleitoral.',
   ]) {
     const s = document.createElement('span');
     s.textContent = linha;
     legenda.append(s);
   }
+  caixa.append(legenda);
+  caixa.hidden = false;
+  for (const { el } of estacoes.values()) descansarMaos(el);
 }
 
-// Uma cédula cai na urna do lado que recebeu o voto; presentes mostram também o "+N".
-function animarVoto(v) {
-  const caixa = $('urnas-lados').querySelector(`[data-lado="${v.lado}"] .urna-caixa`);
-  if (!caixa) return;
-  const agora = performance.now();
-  if (agora - (ultimaCedula[v.lado] ?? 0) < 90) return; // enxurrada de votos: só atualiza o placar
-  ultimaCedula[v.lado] = agora;
+function mostrarPlacar() {
+  const total = Object.values(exibidos).reduce((a, b) => a + b, 0);
+  const maior = Math.max(30, ...Object.values(exibidos));
+  for (const [id, { el }] of estacoes) {
+    const votos = exibidos[id] ?? 0;
+    const campo = el.querySelector('.votos');
+    if (campo.textContent !== String(votos)) {
+      campo.textContent = votos;
+      campo.classList.remove('pop');
+      void campo.offsetWidth; // reinicia a animação
+      campo.classList.add('pop');
+    }
+    el.querySelector('.pct').textContent = total ? `${Math.round((votos / total) * 100)}%` : '';
+    el.style.setProperty('--nivel', Math.min(1, votos / maior));
+  }
+}
 
+function aplicarPlacar(u) {
+  for (const l of u.lados) exibidos[l.id] = l.votos;
+  mostrarPlacar();
+}
+
+function desenharUrnas(u) {
+  if (estacoes.size !== u.lados.length) montarUrnas(u);
+  ultimoPlacar = u;
+  // Enquanto alguma mão está digitando, o placar só muda quando ela aperta VOTAR.
+  if (![...estacoes.values()].some((e) => e.ocupada)) aplicarPlacar(u);
+}
+
+function posicionar(mao, x, y, largura) {
+  mao.style.setProperty('--x', `${x}px`);
+  mao.style.setProperty('--y', `${y}px`);
+  mao.style.setProperty('--giro', `${(x / largura - 0.5) * 16}deg`);
+}
+
+function descansarMaos(el) {
+  const l = el.offsetWidth;
+  posicionar(el.querySelector('.esquerda'), l * 0.26, el.offsetHeight + 40, l);
+  posicionar(el.querySelector('.direita'), l * 0.7, el.offsetHeight + 40, l);
+}
+
+async function apertar(el, mao, tecla) {
+  posicionar(mao, tecla.offsetLeft + tecla.offsetWidth / 2, tecla.offsetTop + tecla.offsetHeight / 2, el.offsetWidth);
+  await dormir(260);
+  mao.classList.add('aperta');
+  tecla.classList.add('apertada');
+  SONS.tecla();
+  await dormir(130);
+  mao.classList.remove('aperta');
+  tecla.classList.remove('apertada');
+  await dormir(80);
+}
+
+function enfileirarVoto(v) {
+  const est = estacoes.get(v.lado);
+  if (!est) return;
+  est.fila.push(v);
+  while (est.fila.length > 4) est.fila.shift();
+  if (!est.ocupada) votarNaMaquina(est);
+}
+
+async function votarNaMaquina(est) {
+  est.ocupada = true;
+  const { el } = est;
+  const maos = [el.querySelector('.esquerda'), el.querySelector('.direita')];
+  const slots = [...el.querySelectorAll('.digitos b')];
+  const texto = el.querySelector('.visor-texto');
+  while (est.fila.length) {
+    const v = est.fila.shift();
+    const lado = v.placar.lados.find((l) => l.id === v.lado);
+    slots.forEach((s) => (s.textContent = ''));
+    texto.textContent = v.nome;
+    el.classList.remove('confirmado');
+    for (const [i, d] of [...lado.numero].entries()) {
+      const tecla = el.querySelector(`[data-tecla="${d}"]`);
+      if (!tecla) continue;
+      await apertar(el, maos[i % 2], tecla);
+      if (slots[i]) slots[i].textContent = d;
+    }
+    texto.textContent = lado.nome;
+    await dormir(200);
+    await apertar(el, maos[1], el.querySelector('[data-tecla="votar"]'));
+    SONS.votar();
+    el.classList.add('confirmado');
+    texto.textContent = `✓ +${v.votos} ${v.nome}`;
+    exibidos[v.lado] = lado.votos;
+    mostrarPlacar();
+    soltarCedula(el, v);
+    await dormir(420);
+    descansarMaos(el);
+  }
+  est.ocupada = false;
+  if (ultimoPlacar && ![...estacoes.values()].some((e) => e.ocupada)) aplicarPlacar(ultimoPlacar);
+}
+
+// A cédula entra pela fenda e cai até o topo da pilha; presentes mostram também o "+N".
+function soltarCedula(el, v) {
+  const caixa = el.querySelector('.caixa-votos');
   const cedula = document.createElement('div');
   cedula.className = 'cedula';
   caixa.append(cedula);
-  setTimeout(() => cedula.remove(), 800);
+  setTimeout(() => cedula.remove(), 900);
   if (v.origem === 'presente') {
     const mais = document.createElement('div');
     mais.className = 'mais';
@@ -636,107 +737,13 @@ function animarVoto(v) {
   }
 }
 
-// ---------- teclado com duas mãos ----------
-// Cada voto vira uma sequência: as mãos digitam o número do lado e apertam VOTAR; só então a cédula
-// cai e o placar muda. Votos em excesso pulam a animação, mas o placar final é sempre o último.
-const filaTeclado = [];
-let teclando = false;
-let placarPendente = null;
-let teclado = null;
-
-function montarTeclado(digitos) {
-  teclado = document.createElement('section');
-  teclado.id = 'teclado';
-  teclado.setAttribute('aria-hidden', 'true');
-  teclado.innerHTML = `
-    <div class="visor"><span class="digitos">${'<b></b>'.repeat(digitos)}</span><span class="visor-texto"></span></div>
-    <div class="teclas">
-      ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((n) => `<div class="tecla" data-tecla="${n}">${n}</div>`).join('')}
-      <div class="tecla votar" data-tecla="votar">VOTAR</div>
-    </div>
-    <div class="mao esquerda">👇</div>
-    <div class="mao direita">👇</div>`;
-  palco.append(teclado);
-  descansarMaos();
-}
-
-function descansarMaos() {
-  const largura = teclado.clientWidth;
-  for (const [mao, x] of [[teclado.querySelector('.esquerda'), largura * 0.22], [teclado.querySelector('.direita'), largura * 0.78]]) {
-    mao.style.setProperty('--x', `${x}px`);
-    mao.style.setProperty('--y', '-6px');
-  }
-}
-
-async function apertar(mao, tecla) {
-  mao.style.setProperty('--x', `${tecla.offsetLeft + tecla.offsetWidth / 2}px`);
-  mao.style.setProperty('--y', `${tecla.offsetTop + tecla.offsetHeight / 2}px`);
-  await dormir(240);
-  mao.classList.add('aperta');
-  tecla.classList.add('apertada');
-  SONS.tecla();
-  await dormir(130);
-  mao.classList.remove('aperta');
-  tecla.classList.remove('apertada');
-  await dormir(70);
-}
-
-function enfileirarVoto(v) {
-  filaTeclado.push(v);
-  // Enxurrada de votos: descarta animações antigas (o placar de cada voto já inclui os anteriores).
-  while (filaTeclado.length > 5) filaTeclado.shift();
-  if (!teclando) teclar();
-}
-
-async function teclar() {
-  teclando = true;
-  while (filaTeclado.length) {
-    const v = filaTeclado.shift();
-    const lado = v.placar.lados.find((l) => l.id === v.lado);
-    if (!teclado || !lado) continue;
-    teclado.style.setProperty('--cor', lado.cor);
-    const slots = [...teclado.querySelectorAll('.digitos b')];
-    const texto = teclado.querySelector('.visor-texto');
-    slots.forEach((s) => (s.textContent = ''));
-    texto.textContent = v.nome;
-    teclado.classList.remove('confirmado');
-
-    const maos = [teclado.querySelector('.esquerda'), teclado.querySelector('.direita')];
-    for (const [i, d] of [...lado.numero].entries()) {
-      const tecla = teclado.querySelector(`[data-tecla="${d}"]`);
-      if (!tecla) continue;
-      await apertar(maos[i % 2], tecla);
-      if (slots[i]) slots[i].textContent = d;
-    }
-    texto.textContent = lado.nome;
-    await dormir(220);
-    await apertar(maos[1], teclado.querySelector('[data-tecla="votar"]'));
-    SONS.votar();
-    teclado.classList.add('confirmado');
-    texto.textContent = `✓ +${v.votos} ${lado.nome}`;
-    desenharUrnas(v.placar);
-    animarVoto(v);
-    await dormir(450);
-    descansarMaos();
-  }
-  teclando = false;
-  if (placarPendente) {
-    desenharUrnas(placarPendente);
-    placarPendente = null;
-  }
-}
-
 // ---------- WebSocket ----------
 function conectar() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.tipo === 'estado') desenharEstado(msg);
-    else if (msg.tipo === 'urnas') {
-      // Enquanto as mãos digitam, o placar só muda quando apertam VOTAR.
-      if (teclando) placarPendente = msg;
-      else desenharUrnas(msg);
-    }
+    else if (msg.tipo === 'urnas') desenharUrnas(msg);
     else if (msg.tipo === 'voto') {
       if (msg.ok) enfileirarVoto(msg);
     } else if (msg.acoes) enfileirar(msg.acoes, { avatar: msg.avatar });

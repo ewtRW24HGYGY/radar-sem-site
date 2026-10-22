@@ -85,15 +85,10 @@
   @media (max-width: 760px) {
     .palco-demo #meta { top: 12px; width: calc(100% - 24px); padding: 8px 12px 10px; }
     .palco-demo .meta-topo { font-size: 15px; margin-bottom: 6px; }
-    .palco-demo #urnas { top: auto; bottom: 10px; left: 12px; right: 12px; width: auto; padding: 8px 12px; }
-    .palco-demo .urnas-lados { grid-template-columns: 1fr 1fr; gap: 10px; }
     .palco-demo #avisos { bottom: 56%; }
-    .palco-demo #teclado { left: 50%; bottom: 74px; translate: -50% 0; width: 270px; padding: 8px 10px 10px; }
-    .palco-demo .teclas { grid-auto-rows: 32px; gap: 5px; }
-    .palco-demo .urna { grid-template-columns: 44px auto 1fr; grid-template-areas: "caixa numero votos"; }
-    .palco-demo .urna-caixa { width: 44px; height: 44px; }
-    .palco-demo .urna .nome, .palco-demo .urna .pct, .palco-demo .urnas-legenda { display: none; }
-    .palco-demo .urna .votos { font-size: 22px; justify-self: end; }
+    .palco-demo #urnas { left: 8px; right: 8px; bottom: 8px; }
+    .palco-demo .estacao { scale: 0.5; }
+    .palco-demo .urnas-legenda { display: none; }
     .palco-demo #ranking { top: 82px; right: 12px; min-width: 0; padding: 8px 12px; }
     .palco-demo #ranking li { font-size: 15px; }
     .palco-demo #ranking li span:first-child { max-width: 110px; }
@@ -121,11 +116,7 @@
       <h2>Top doadores</h2>
       <ol id="ranking-lista"></ol>
     </aside>
-    <section id="urnas" hidden aria-label="Urnas">
-      <div id="urnas-barra" class="urnas-barra"></div>
-      <div id="urnas-lados" class="urnas-lados"></div>
-      <p id="urnas-legenda" class="urnas-legenda"></p>
-    </section>
+    <section id="urnas" hidden aria-label="Urnas"></section>
     <div id="avisos"></div>
     <div id="bau-cena" hidden></div>
   </div>
