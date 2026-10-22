@@ -62,6 +62,7 @@ function definirStatus(status, mensagem = '') {
 wss.on('connection', (ws) => {
   enviar(ws, statusMsg());
   enviar(ws, { tipo: 'estado', ...motor.snapshot() });
+  enviar(ws, motor.snapshotUrnas());
   ws.on('message', (raw) => {
     let msg;
     try {
@@ -83,6 +84,9 @@ function tratarComando(msg) {
       break;
     case 'zerar':
       motor.zerar();
+      break;
+    case 'zerarUrnas':
+      motor.zerarUrnas();
       break;
     case 'simular':
       motor.simular(msg);
@@ -136,6 +140,11 @@ async function conectar(usuario) {
     const g = lerPresente(d);
     if (g.emSequencia) return;
     motor.processarPresente({ ...quemE(d), ...g });
+  });
+  con.on(WebcastEvent.CHAT, (d) => {
+    const { nome } = quemE(d);
+    const id = String(d.user?.userId ?? d.user?.uniqueId ?? nome);
+    motor.processarChat({ id, nome, comentario: d.comment });
   });
   con.on(WebcastEvent.FOLLOW, (d) => motor.processarExtra('seguidor', quemE(d).nome, quemE(d).avatar));
   con.on(WebcastEvent.SHARE, (d) => motor.processarExtra('compartilhou', quemE(d).nome, quemE(d).avatar));

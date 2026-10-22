@@ -59,7 +59,7 @@
   }
   .palco-demo #palco, .palco-demo #particulas { position: absolute; }
   .dica {
-    position: absolute; inset: auto 16px 16px 16px; margin: 0; text-align: center;
+    position: absolute; inset: 0; margin: 0; padding: 0 24px; display: grid; place-items: center; text-align: center;
     color: #c9cfdd; font-size: 15px; pointer-events: none;
   }
 
@@ -79,11 +79,18 @@
   button:hover { border-color: var(--d-accent); }
   button:active { transform: translateY(1px); }
   button:focus-visible, input:focus-visible { outline: 2px solid var(--d-focus); outline-offset: 2px; }
+  .nota { margin: 0; font-size: 14px; color: var(--d-mute); }
   button.fraco { background: transparent; color: var(--d-mute); font-weight: 500; }
 
   @media (max-width: 760px) {
     .palco-demo #meta { top: 12px; width: calc(100% - 24px); padding: 8px 12px 10px; }
     .palco-demo .meta-topo { font-size: 15px; margin-bottom: 6px; }
+    .palco-demo #urnas { top: auto; bottom: 10px; left: 12px; right: 12px; width: auto; padding: 8px 12px; }
+    .palco-demo .urnas-lados { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .palco-demo .urna { grid-template-columns: 44px auto 1fr; grid-template-areas: "caixa numero votos"; }
+    .palco-demo .urna-caixa { width: 44px; height: 44px; }
+    .palco-demo .urna .nome, .palco-demo .urna .pct, .palco-demo .urnas-legenda { display: none; }
+    .palco-demo .urna .votos { font-size: 22px; justify-self: end; }
     .palco-demo #ranking { top: 82px; right: 12px; min-width: 0; padding: 8px 12px; }
     .palco-demo #ranking li { font-size: 15px; }
     .palco-demo #ranking li span:first-child { max-width: 110px; }
@@ -111,6 +118,11 @@
       <h2>Top doadores</h2>
       <ol id="ranking-lista"></ol>
     </aside>
+    <section id="urnas" hidden aria-label="Urnas">
+      <div id="urnas-barra" class="urnas-barra"></div>
+      <div id="urnas-lados" class="urnas-lados"></div>
+      <p id="urnas-legenda" class="urnas-legenda"></p>
+    </section>
     <div id="avisos"></div>
     <div id="bau-cena" hidden></div>
   </div>
@@ -144,6 +156,19 @@
       </label>
       <button type="button" id="sim-desconhecido">Enviar presente novo<small>regra por valor</small></button>
     </div>
+  </div>
+
+  <div class="grupo">
+    <h2>Urnas</h2>
+    <div class="botoes">
+      <label class="campo" for="urna-comentario">Comentário no chat
+        <input id="urna-comentario" value="22" maxlength="200">
+      </label>
+      <button type="button" id="urna-enviar">Enviar no chat<small>só o número vale</small></button>
+      <button type="button" class="fraco" id="urna-zerar">Zerar urnas</button>
+    </div>
+    <div class="botoes" id="urna-botoes"></div>
+    <p class="nota" id="urna-status" aria-live="polite">O nome acima funciona como a pessoa: o mesmo nome não vota duas vezes de graça.</p>
   </div>
 
   <div class="grupo">

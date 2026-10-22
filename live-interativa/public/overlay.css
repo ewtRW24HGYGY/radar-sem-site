@@ -10,6 +10,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; }
+[hidden] { display: none !important; } /* #bau-cena tem display próprio e ignoraria o atributo */
 
 html, body {
   width: 100%;
@@ -74,6 +75,76 @@ body.fundo {
 #ranking li { display: flex; justify-content: space-between; gap: 16px; font-size: 20px; font-weight: 600; }
 #ranking li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
 #ranking li:nth-child(1) span:last-child { color: var(--lendario); }
+
+/* ---------- urnas ---------- */
+#urnas {
+  position: absolute;
+  top: 118px;
+  left: 28px;
+  width: 310px;
+  padding: 12px 14px 10px;
+  border-radius: 16px;
+  background: var(--glass);
+  backdrop-filter: blur(6px);
+}
+.urnas-barra { display: flex; height: 10px; margin-bottom: 10px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, 0.14); }
+.urnas-barra span { display: block; height: 100%; transition: width 0.6s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.urnas-lados { display: grid; gap: 6px; }
+.urna {
+  display: grid;
+  grid-template-columns: 56px auto 1fr auto;
+  grid-template-areas: "caixa numero nome votos" "caixa numero pct votos";
+  align-items: center;
+  column-gap: 10px;
+  text-align: left;
+}
+.urna-caixa { grid-area: caixa; position: relative; width: 56px; height: 56px; }
+.urna-caixa svg { position: relative; z-index: 1; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); }
+.urna .corpo { fill: var(--cor); }
+.urna .tampa { fill: color-mix(in srgb, var(--cor) 72%, #000); }
+.urna .fenda { fill: #0b0c12; }
+.urna .numero { grid-area: numero; font-size: 34px; font-weight: 900; line-height: 1; color: var(--cor); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.urna .nome { grid-area: nome; align-self: end; font-size: 14px; opacity: 0.9; }
+.urna .pct { grid-area: pct; align-self: start; font-size: 13px; opacity: 0.7; }
+.urna .votos { grid-area: votos; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.urna .votos.pop { animation: pop 0.35s ease-out; }
+@keyframes pop { 40% { transform: scale(1.25); } }
+.cedula {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  z-index: 0;
+  width: 26px;
+  height: 34px;
+  margin-left: -13px;
+  border-radius: 3px;
+  border: 2px solid var(--cor);
+  background: #ffffff;
+  animation: cai 0.7s ease-in forwards;
+}
+@keyframes cai {
+  0% { transform: translateY(-46px) rotate(-14deg); opacity: 0; }
+  20% { opacity: 1; }
+  70% { transform: translateY(20px) rotate(4deg); opacity: 1; }
+  100% { transform: translateY(32px) rotate(0); opacity: 0; }
+}
+.mais {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  z-index: 2;
+  translate: -50% 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--cor);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  animation: sobe-mais 1s ease-out forwards;
+}
+@keyframes sobe-mais { from { opacity: 0; transform: translateY(14px); } 20% { opacity: 1; } to { opacity: 0; transform: translateY(-52px); } }
+.urnas-legenda { margin: 8px 0 0; font-size: 12px; line-height: 1.35; opacity: 0.85; text-align: center; }
+.urnas-legenda span { display: block; }
+.urnas-legenda span + span { margin-top: 2px; opacity: 0.7; font-size: 11px; }
 
 /* ---------- avisos (toasts) ---------- */
 #avisos {
@@ -190,5 +261,5 @@ body.fundo {
 @keyframes sobe { from { opacity: 0; transform: translateY(50px) scale(0.8); } }
 
 @media (prefers-reduced-motion: reduce) {
-  #palco.tremor, .bau-wrap.treme .bau-svg, .bau-wrap.aberto .brilho { animation: none; }
+  #palco.tremor, .bau-wrap.treme .bau-svg, .bau-wrap.aberto .brilho, .cedula, .mais { animation: none; }
 }

@@ -65,6 +65,21 @@ export default {
     ],
   },
 
+  // Duas urnas: o público vota digitando o número no chat (1 voto grátis por pessoa) ou mandando o
+  // presente do lado (cada presente vale `votosPorPresente`, sem limite).
+  //   aoVivo: false -> só os botões de teste (simulação) votam; chat e presentes de uma live
+  //                    real são ignorados pelas urnas. Troque para true só se for usar de verdade.
+  // Não achei "rosa branca" na lista de presentes do TikTok: o lado branco aceita um presente com
+  // esse nome, caso exista, e o Tsuru (origami branco). Ajuste `presentes` como quiser.
+  urnas: {
+    aoVivo: false,
+    votosPorPresente: 5,
+    lados: [
+      { id: 'branca', nome: 'Rosa Branca', numero: '22', cor: '#f1f1f6', presentes: ['White Rose', 'Rosa Branca', 'Paper Crane'] },
+      { id: 'vermelha', nome: 'Rosa Vermelha', numero: '13', cor: '#ff2d55', presentes: ['Rose', 'Rosa', 'Red Rose', 'Rosa Vermelha'] },
+    ],
+  },
+
   // Seguidor novo e compartilhamento também reagem (sem custo para ninguém).
   extras: {
     seguidor: { efeito: 'confete', emoji: [], texto: '{nome} começou a seguir!' },

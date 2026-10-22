@@ -546,13 +546,103 @@ function desenharEstado(s) {
   $('ranking').hidden = s.ranking.length === 0;
 }
 
+// ---------- urnas ----------
+const URNA_SVG = `
+<svg viewBox="0 0 84 84" aria-hidden="true">
+  <rect class="corpo" x="12" y="34" width="60" height="46" rx="6"/>
+  <rect x="12" y="52" width="60" height="4" fill="rgba(0,0,0,0.18)"/>
+  <rect class="tampa" x="6" y="26" width="72" height="12" rx="4"/>
+  <rect class="fenda" x="25" y="30" width="34" height="4" rx="2"/>
+</svg>`;
+let urnasMontadas = '';
+const ultimaCedula = {};
+
+function desenharUrnas(u) {
+  $('urnas').hidden = false;
+  const chave = u.lados.map((l) => l.id).join();
+  if (chave !== urnasMontadas) {
+    urnasMontadas = chave;
+    $('urnas-lados').replaceChildren(
+      ...u.lados.map((l) => {
+        const el = document.createElement('div');
+        el.className = 'urna';
+        el.dataset.lado = l.id;
+        el.style.setProperty('--cor', l.cor);
+        el.innerHTML = `<div class="urna-caixa">${URNA_SVG}</div><div class="numero"></div><div class="nome"></div><div class="votos"></div><div class="pct"></div>`;
+        return el;
+      }),
+    );
+    $('urnas-barra').replaceChildren(
+      ...u.lados.map((l) => {
+        const seg = document.createElement('span');
+        seg.dataset.lado = l.id;
+        seg.style.background = l.cor;
+        return seg;
+      }),
+    );
+  }
+
+  const total = u.lados.reduce((soma, l) => soma + l.votos, 0);
+  for (const l of u.lados) {
+    const pct = total ? (l.votos / total) * 100 : 100 / u.lados.length;
+    $('urnas-barra').querySelector(`[data-lado="${l.id}"]`).style.width = `${pct}%`;
+    const el = $('urnas-lados').querySelector(`[data-lado="${l.id}"]`);
+    el.querySelector('.numero').textContent = l.numero;
+    el.querySelector('.nome').textContent = l.nome;
+    el.querySelector('.pct').textContent = `${Math.round(pct)}%`;
+    const votos = el.querySelector('.votos');
+    if (votos.textContent !== String(l.votos)) {
+      votos.textContent = l.votos;
+      votos.classList.remove('pop');
+      void votos.offsetWidth; // reinicia a animação
+      votos.classList.add('pop');
+    }
+  }
+
+  const numeros = u.lados.map((l) => l.numero).join(' ou ');
+  const legenda = $('urnas-legenda');
+  legenda.replaceChildren();
+  for (const linha of [
+    `Digite ${numeros} no chat: 1 voto grátis por pessoa. Cada presente do lado vale ${u.votosPorPresente} votos.`,
+    'Brincadeira de teste. Não é pesquisa eleitoral.',
+  ]) {
+    const s = document.createElement('span');
+    s.textContent = linha;
+    legenda.append(s);
+  }
+}
+
+// Uma cédula cai na urna do lado que recebeu o voto; presentes mostram também o "+N".
+function animarVoto(v) {
+  const caixa = $('urnas-lados').querySelector(`[data-lado="${v.lado}"] .urna-caixa`);
+  if (!caixa) return;
+  const agora = performance.now();
+  if (agora - (ultimaCedula[v.lado] ?? 0) < 90) return; // enxurrada de votos: só atualiza o placar
+  ultimaCedula[v.lado] = agora;
+
+  const cedula = document.createElement('div');
+  cedula.className = 'cedula';
+  caixa.append(cedula);
+  setTimeout(() => cedula.remove(), 800);
+  if (v.origem === 'presente') {
+    const mais = document.createElement('div');
+    mais.className = 'mais';
+    mais.textContent = `+${v.votos}`;
+    caixa.append(mais);
+    setTimeout(() => mais.remove(), 1100);
+  }
+}
+
 // ---------- WebSocket ----------
 function conectar() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.tipo === 'estado') desenharEstado(msg);
-    else if (msg.acoes) enfileirar(msg.acoes, { avatar: msg.avatar });
+    else if (msg.tipo === 'urnas') desenharUrnas(msg);
+    else if (msg.tipo === 'voto') {
+      if (msg.ok) animarVoto(msg);
+    } else if (msg.acoes) enfileirar(msg.acoes, { avatar: msg.avatar });
   };
   ws.onclose = () => setTimeout(conectar, 2000);
 }

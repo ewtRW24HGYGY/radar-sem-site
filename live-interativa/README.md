@@ -53,6 +53,19 @@ Cada presente do `catalogo.js` (de Rosa, 1 moeda, até a Galáxia, 1000 moedas) 
 
 Presentes em sequência (como Rosas repetidas) são contados quando a sequência termina.
 
+## Urnas (22 e 13)
+
+Duas urnas na tela, Rosa Branca (22) e Rosa Vermelha (13), com placar, porcentagem e uma cédula caindo a cada voto.
+
+- Quem escreve **exatamente** `22` ou `13` no chat soma 1 voto grátis, **uma vez por pessoa** (comentários como "tem 13 anos" não contam).
+- Cada presente do lado soma 5 votos, sem limite, mesmo para quem já usou o voto grátis. Rosa vale para a urna vermelha. Não achei
+  uma "rosa branca" na lista do TikTok: a urna branca aceita um presente com esse nome, se existir, e o Tsuru. Troque em `config.js`.
+- **`config.urnas.aoVivo` vem desligado**: só os botões de teste do painel e da demo votam, e o chat e os presentes de uma live real
+  são ignorados pelas urnas. Só mude para `true` se for usar de verdade.
+- A regra de uma vez por pessoa vale enquanto o servidor está rodando; reiniciar zera as urnas.
+- A tela mostra "Brincadeira de teste. Não é pesquisa eleitoral." Isso não torna legal uma enquete sobre eleição: o TSE proíbe enquetes
+  eleitorais no período de campanha, então não use isso ao vivo até a eleição acabar.
+
 ## Observações
 
 - O servidor escuta só em `127.0.0.1` e recusa conexões WebSocket de páginas de outros sites.

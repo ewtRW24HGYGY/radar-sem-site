@@ -17,6 +17,65 @@ export function criarMotor(config, transmitir) {
     for (const n of [item.nome, item.pt, ...(item.nomes ?? [])]) indice.set(normalizar(n), item);
   }
 
+  // ---------- urnas ----------
+  const cfgUrnas = config.urnas;
+  const urnas = {
+    votos: new Map((cfgUrnas?.lados ?? []).map((l) => [l.id, { gratis: 0, presente: 0 }])),
+    votantes: new Map(), // quem já usou o voto grátis -> lado
+  };
+  const presentesDoLado = new Map(); // nome normalizado -> lado
+  for (const lado of cfgUrnas?.lados ?? []) {
+    for (const n of lado.presentes ?? []) presentesDoLado.set(normalizar(n), lado);
+  }
+  // Eventos de uma live real só contam se `aoVivo` estiver ligado; os de teste sempre contam.
+  const contaVoto = (origem) => cfgUrnas && (origem === 'teste' || cfgUrnas.aoVivo);
+
+  function snapshotUrnas() {
+    return {
+      tipo: 'urnas',
+      aoVivo: Boolean(cfgUrnas?.aoVivo),
+      votosPorPresente: cfgUrnas?.votosPorPresente ?? 0,
+      lados: (cfgUrnas?.lados ?? []).map((l) => {
+        const v = urnas.votos.get(l.id);
+        return { id: l.id, nome: l.nome, numero: l.numero, cor: l.cor, presente: l.presentes?.[0] ?? '', gratis: v.gratis, pagos: v.presente, votos: v.gratis + v.presente };
+      }),
+    };
+  }
+
+  // Comentário do chat: só vale se for exatamente o número de uma urna, e só uma vez por pessoa.
+  function processarChat({ id, nome, comentario }, origem = 'real') {
+    if (!contaVoto(origem)) return;
+    const lado = cfgUrnas.lados.find((l) => l.numero === String(comentario ?? '').trim());
+    if (!lado) return;
+    if (urnas.votantes.has(id)) {
+      transmitir({ tipo: 'voto', ok: false, motivo: 'ja-votou', nome, lado: urnas.votantes.get(id) });
+      return;
+    }
+    urnas.votantes.set(id, lado.id);
+    urnas.votos.get(lado.id).gratis += 1;
+    transmitir({ tipo: 'voto', ok: true, origem: 'chat', lado: lado.id, nome, votos: 1 });
+    transmitir(snapshotUrnas());
+  }
+
+  function votarComPresente({ nome, presente, quantidade }, origem) {
+    if (!contaVoto(origem)) return;
+    const lado = presentesDoLado.get(normalizar(presente));
+    if (!lado) return;
+    const votos = cfgUrnas.votosPorPresente * Math.max(1, quantidade || 1);
+    urnas.votos.get(lado.id).presente += votos;
+    transmitir({ tipo: 'voto', ok: true, origem: 'presente', lado: lado.id, nome, votos });
+    transmitir(snapshotUrnas());
+  }
+
+  function zerarUrnas() {
+    for (const v of urnas.votos.values()) {
+      v.gratis = 0;
+      v.presente = 0;
+    }
+    urnas.votantes.clear();
+    transmitir(snapshotUrnas());
+  }
+
   const estado = {
     total: 0,
     metaAtual: config.meta.alvo,
@@ -72,7 +131,7 @@ export function criarMotor(config, transmitir) {
     return acoes;
   }
 
-  function processarPresente({ nome, avatar, presente, imagem, diamantes, quantidade }) {
+  function processarPresente({ nome, avatar, presente, imagem, diamantes, quantidade }, origem = 'real') {
     estado.total += diamantes;
     estado.ranking.set(nome, (estado.ranking.get(nome) || 0) + diamantes);
 
@@ -97,6 +156,7 @@ export function criarMotor(config, transmitir) {
     }
 
     transmitir({ tipo: 'presente', nome, avatar, presente, imagem, diamantes, quantidade, acoes });
+    votarComPresente({ nome, presente, quantidade }, origem);
     transmitir({ tipo: 'estado', ...snapshot() });
   }
 
@@ -127,11 +187,14 @@ export function criarMotor(config, transmitir) {
         imagem: '',
         diamantes: diamantes * quantidade,
         quantidade,
-      });
+      }, 'teste');
+    } else if (msg.evento === 'chat') {
+      // O "id" do votante simulado é o nome: mandar de novo com o mesmo nome testa o limite de 1 voto.
+      processarChat({ id: `teste:${nome}`, nome, comentario: String(msg.comentario ?? '').slice(0, 200) }, 'teste');
     } else if (msg.evento === 'seguidor' || msg.evento === 'compartilhou') {
       processarExtra(msg.evento, nome, '');
     }
   }
 
-  return { snapshot, processarPresente, processarExtra, zerar, simular };
+  return { snapshot, snapshotUrnas, processarPresente, processarChat, processarExtra, zerar, zerarUrnas, simular };
 }
