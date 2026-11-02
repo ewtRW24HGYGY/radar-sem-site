@@ -48,7 +48,8 @@ export class InputManager {
     this.usingTouch = true;
     const slot = this.slotFor(u);
     this.pointers.set(e.pointerId, { u, v, slot, t0: performance.now(), moved: 0 });
-    this.last[slot] = { u, v, active: true };
+    this.seq = (this.seq || 0) + 1;
+    this.last[slot] = { u, v, active: true, seq: this.seq };
     try { this.el.setPointerCapture(e.pointerId); } catch { /* ignore */ }
   }
   move(e) {
@@ -59,7 +60,7 @@ export class InputManager {
     e.preventDefault();
     p.moved += Math.hypot(u - p.u, v - p.v);
     p.u = u; p.v = v;
-    this.last[p.slot] = { u, v, active: true };
+    this.last[p.slot] = { ...this.last[p.slot], u, v, active: true };
   }
   up(e) {
     if (e.pointerType === 'mouse') { this.buttons = e.buttons; return; }

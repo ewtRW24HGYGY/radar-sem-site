@@ -6,6 +6,7 @@ import { OpponentModel } from './ai/adaptation.js';
 import { RobotController } from './ai/robot.js';
 import { HumanController, STROKES } from './controls/humanController.js';
 import { KeyboardController } from './controls/keyboardController.js';
+import { EasyController } from './controls/easyController.js';
 import { InputManager } from './controls/input.js';
 import { Renderer, autoQuality } from './render/renderer.js';
 import { buildTable } from './render/table.js';
@@ -104,6 +105,7 @@ class App {
     else if (k === 'trail') this.ballView.showTrail = v;
     else if (k === 'volume') this.audio.setVolume(v);
     else if (k === 'ambient') this.audio.setAmbient(v);
+    else if (k === 'control') { if (!this.demo && this.state === 'playing') this.ui.toast('Controle alterado', 'Vale a partir da próxima partida (Reiniciar)', 'neutral', 2200); }
     else if (k === 'difficulty') { const ai = this.core?.controllers[1]; if (ai instanceof AIController && !(ai instanceof KeyboardController) && !this.demo) { ai.setLevel(v); this.ui.setNames(this.humanName(0), `IA · ${LEVELS[v].label}`); } }
     else if (k.startsWith('robot')) { const r = this.core?.controllers[1]; if (r instanceof RobotController) this.applyRobotSettings(r); }
   }
@@ -155,15 +157,19 @@ class App {
     const S = this.settings;
     let c1f;
     this.model = null;
+    const easy = S.control !== 'manual';
+    const player = (w, i) => (easy ? new EasyController(w, i) : new HumanController(w, i, S));
     if (mode === 'match' || mode === 'pro') {
       this.model = new OpponentModel();
       c1f = (w) => new AIController(w, 1, S.difficulty, { model: this.model });
     } else if (mode === 'rally') c1f = (w) => new AIController(w, 1, 'advanced', { coop: true });
-    else if (mode === 'versus') c1f = (w) => (isTouch ? new HumanController(w, 1, S) : new KeyboardController(w, 1));
+    else if (mode === 'versus') c1f = (w) => (isTouch ? player(w, 1) : new KeyboardController(w, 1));
     else c1f = (w) => { const r = new RobotController(w, 1); this.applyRobotSettings(r); r.onFeed = (l) => this.arena.aimRobot(l.dir); return r; };
     this.arena.showTarget(null);
-    this.core = this.makeCore(mode, (w) => new HumanController(w, 0, S), c1f);
+    this.core = this.makeCore(mode, (w) => player(w, 0), c1f);
     this.humans = this.core.controllers.filter((c) => c instanceof HumanController);
+    this.easies = this.core.controllers.filter((c) => c instanceof EasyController);
+    this.touchX = [null, null]; this.touchSeq = [-1, -1];
     this.core.start();
     const training = mode === 'free' || mode === 'precision';
     this.arena.robot.visible = training;
@@ -188,7 +194,8 @@ class App {
     if (scored) this.updateScore(false);
     if (mode === 'rally') this.ui.training(`<div><span>Rally atual</span><b id="trRally">0</b></div><div><span>Recorde</span><b id="trBest">${this.bestRally}</b></div>`);
     if (training) this.updateTrainingHud(this.core.training);
-    if (mode === 'pro') this.ui.toast('Modo profissional', 'Melhor de 5 sets · regras oficiais', 'neutral', 2200);
+    if (easy && !this.easyTipShown) { this.easyTipShown = true; this.ui.toast('Controle fácil', isTouch ? 'Arraste o dedo para os lados: a raquete golpeia sozinha' : 'Mova o mouse para os lados: a raquete golpeia sozinha', 'neutral', 2800); }
+    else if (mode === 'pro') this.ui.toast('Modo profissional', 'Melhor de 5 sets · regras oficiais', 'neutral', 2200);
     else if (isTouch && innerHeight > innerWidth) this.ui.toast('Dica', 'Gire o celular na horizontal para ver mais da mesa', 'neutral', 2600);
   }
 
@@ -274,8 +281,33 @@ class App {
       h.setFrameInput(tw.x, tw.z, b, this.core.time, dt);
       if (slot === 0) this.ui.setStroke(h.stroke, STROKES[h.stroke].label + (b.sideL ? ' + lateral ◀' : b.sideR ? ' + lateral ▶' : ''));
     }
+    for (const e of this.easies || []) {
+      const slot = e.index, p = f.pointer[slot];
+      let x;
+      if (slot === 0 && !this.input.usingTouch) {
+        x = this.pointerToWorld(e.index, p.u, p.v).x;              // mouse: absolute
+      } else {
+        // touch: drag anywhere — relative movement, the racket never jumps under the finger
+        if (this.touchX[slot] === null) this.touchX[slot] = 0;
+        const prev = this.lastTouch?.[slot];
+        if (prev && p.seq === prev.seq) {
+          const dx = this.pointerToWorld(e.index, p.u, p.v).x - this.pointerToWorld(e.index, prev.u, prev.v).x;
+          this.touchX[slot] = clamp(this.touchX[slot] + dx * 1.35, -HW - 0.8, HW + 0.8);
+        }
+        (this.lastTouch ||= [])[slot] = { u: p.u, v: p.v, seq: p.seq };
+        x = this.touchX[slot];
+      }
+      const mouseSlot = slot === 0 && !this.input.usingTouch;
+      const b = {
+        top: (mouseSlot && (f.buttons & 1) !== 0) || f.keys.has('KeyJ') || f.keys.has('ShiftLeft') || (!this.input.split && f.virtual.top),
+        back: (mouseSlot && (f.buttons & 2) !== 0) || f.keys.has('KeyK') || (!this.input.split && f.virtual.back),
+        toss: (mouseSlot && f.clicked) || (slot === 0 && P.has('Space')) || f.virtualPressed.has('serve') || f.taps[slot],
+      };
+      e.setPointer(x, b, this.core.time, dt);
+      if (slot === 0) this.ui.setStroke(e.stroke, STROKES[e.stroke].label);
+    }
     const kb = this.core.controllers[1];
-    if (kb instanceof KeyboardController) {
+    if (kb instanceof KeyboardController && !kb.easy) {
       kb.setKeys({
         left: f.keys.has('KeyA'), right: f.keys.has('KeyD'), fwd: f.keys.has('KeyW'), rev: f.keys.has('KeyS'),
         drive: P.has('KeyF') || P.has('Space'), top: P.has('KeyQ'), cut: P.has('KeyE'),
@@ -317,7 +349,10 @@ class App {
     if (this.mode !== 'rally' && this.mode !== 'free' && this.mode !== 'precision') this.updateScore(false);
     this.ui.setRally(0);
     const human = this.core.controllers[d.server] instanceof HumanController;
-    if (human) {
+    if (this.core.controllers[d.server] instanceof EasyController) {
+      const who = this.mode === 'versus' ? `Jogador ${d.server + 1}: ` : '';
+      this.ui.hint(isTouch ? `${who}toque em SACAR · segure Topspin ou Corte para escolher o efeito` : `${who}Espaço ou clique para sacar · botão esquerdo = topspin, direito = corte`);
+    } else if (human) {
       const who = this.mode === 'versus' ? `Jogador ${d.server + 1}: ` : '';
       this.ui.hint(isTouch ? `${who}toque em SACAR e deslize para cima enquanto a bola desce` : `${who}${this.mode === 'versus' ? 'clique' : 'Espaço ou clique'} para lançar · leve o mouse para frente enquanto a bola desce`);
     } else if (this.core.controllers[d.server] instanceof KeyboardController) this.ui.hint('Jogador 2: Espaço/F para lançar e sacar · Q topspin · E corte');

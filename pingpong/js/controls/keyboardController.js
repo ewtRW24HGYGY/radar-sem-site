@@ -29,6 +29,8 @@ export class KeyboardController extends AIController {
     this.incomingBall = ev.index !== this.index;
   }
   prepareReceive() { this.incomingBall = false; }
+  // a ball machine launched a ball at us
+  onIncoming() { this.incomingBall = true; this.needBounce = 1; this.otherNeed = 0; this.plan = null; }
   setKeys(k, t) {
     Object.assign(this.keys, k);
     if (k.toss && this.serve && this.serve.phase === 'hold') this.serve.tossAt = t;
@@ -48,15 +50,16 @@ export class KeyboardController extends AIController {
     this.aim = mx;
     super.update(dt, t);
   }
-  swing(kind, t) {
+  swing(kind, t, opts = {}) {
     const lv = this.lv;
+    const reach = opts.reach ?? 0.85;
     predict(this.perceive(this.world.ball, lv.spinRead), this.traj, 1.6, 0.002);
     const win = hittableWindow(this.traj, this.index, this.needBounce, this.otherNeed);
     let best = -1, bestErr = Infinity;
     if (win) {
       for (let i = win.start; i <= win.end; i += 2) {
         const dx = this.traj.px(i) - this.manualTarget.x, dz = this.traj.pz(i) - this.manualTarget.z;
-        if (Math.hypot(dx, dz) > 0.85 || this.traj.py(i) < TABLE_HEIGHT + 0.03) continue;
+        if (Math.hypot(dx, dz) > reach || this.traj.py(i) < TABLE_HEIGHT + 0.03) continue;
         const err = Math.abs(this.traj.t(i) - SWING_TIME);
         if (err < bestErr) { bestErr = err; best = i; }
       }
@@ -74,6 +77,7 @@ export class KeyboardController extends AIController {
         : { kind: 'drive', speed: 10, top: 20 * RPS, side: 0 };
     const opp = -this.side, oppRight = -this.rightX;
     const target = { x: clamp(this.aim * -oppRight * 0.45 + (this.rng() - 0.5) * 0.2, -0.6, 0.6), z: opp * (kind === 'back' ? 0.6 : 1.0), zone: null };
-    this.buildPlan(t, bc, { shot, target, stressAdd: bestErr * 22, stretch: false });
+        const lateral = Math.abs(bc.p.x - this.manualTarget.x);
+    this.buildPlan(t, bc, { shot, target, stressAdd: bestErr * 22 + (opts.lateralStress ?? 0) * lateral, stretch: false });
   }
 }

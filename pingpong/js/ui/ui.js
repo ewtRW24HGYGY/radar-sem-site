@@ -1,6 +1,6 @@
 // User interface: screen navigation, persistent settings, HUD and notifications.
 export const DEFAULTS = {
-  difficulty: 'intermediate', camera: 'tp', quality: 'auto', assist: 'full', ballColor: 'white',
+  difficulty: 'intermediate', camera: 'tp', control: 'easy', quality: 'auto', assist: 'full', ballColor: 'white',
   sensitivity: 1, volume: 0.8, ambient: 0.5, trail: true, showFps: false,
   robotSpin: 'mixed', robotSpeed: 'medium', robotPlacement: 'random',
 };
@@ -67,7 +67,10 @@ export class UI {
     $('sensOut').textContent = `${Math.round(this.s.sensitivity * 100)}%`;
     $('volOut').textContent = `${Math.round(this.s.volume * 100)}%`;
     $('ambOut').textContent = `${Math.round(this.s.ambient * 100)}%`;
-    $('assistNote').textContent = ASSIST_NOTES[this.s.assist] || '';
+    $('assistNote').textContent = this.s.control === 'manual' ? (ASSIST_NOTES[this.s.assist] || '') : 'A assistência vale para o controle Avançado.';
+    $('controlNote').textContent = this.s.control === 'manual'
+      ? 'Avançado: você move a raquete para frente, para trás e para os lados; a velocidade da sua mão é a força do golpe.'
+      : 'Fácil: você só move a raquete para os lados e escolhe o efeito. Profundidade, altura e o momento do golpe são automáticos. Mover para o lado ao bater direciona a bola.';
   }
 
   // ——— Navigation ———

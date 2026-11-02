@@ -18,6 +18,8 @@ Jogo de tênis de mesa para navegador com física simulada em tempo real (Three.
 
 ## Controles
 
+O padrão é o **controle fácil**: você só move a raquete para os lados (mouse, ou arrastando o dedo em qualquer lugar da tela) e escolhe o efeito; profundidade, altura e o momento do golpe são automáticos, e mover para o lado ao bater direciona a bola. O **controle avançado** (Configurações → Controle) dá o comando completo descrito abaixo.
+
 | Ação | Mouse / teclado | Toque |
 |---|---|---|
 | Mover a raquete | mover o mouse (para cima = em direção à rede) | arrastar o dedo |
@@ -52,4 +54,5 @@ node pingpong/tests/physics.test.mjs    # quique ITTF, Magnus, rede, raquete, t�
 node pingpong/tests/ai.test.mjs 40      # partidas IA × IA por nível, rally cooperativo
 node pingpong/tests/human.test.mjs      # jogador virtual com cada nível de assistência
 node pingpong/tests/keyboard.test.mjs   # 2º jogador no teclado
+node pingpong/tests/easy.test.mjs       # controle fácil (só movimento lateral)
 ```

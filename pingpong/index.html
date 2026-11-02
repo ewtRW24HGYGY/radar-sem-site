@@ -70,6 +70,8 @@
         <div class="seg" data-setting="difficulty">
           <button data-val="beginner">Iniciante</button><button data-val="intermediate">Intermediário</button><button data-val="advanced">Avançado</button><button data-val="pro">Profissional</button>
         </div>
+        <label>Controle</label>
+        <div class="seg" data-setting="control"><button data-val="easy">Fácil</button><button data-val="manual">Avançado</button></div>
         <label>Câmera</label>
         <div class="seg" data-setting="camera">
           <button data-val="fp">1ª pessoa</button><button data-val="tp">3ª pessoa</button><button data-val="side">Lateral</button><button data-val="dyn">Dinâmica</button>
@@ -119,6 +121,9 @@
       <div class="form">
         <label>Qualidade gráfica</label>
         <div class="seg" data-setting="quality"><button data-val="auto">Auto</button><button data-val="low">Baixa</button><button data-val="medium">Média</button><button data-val="high">Alta</button></div>
+        <label>Controle</label>
+        <div class="seg" data-setting="control"><button data-val="easy">Fácil</button><button data-val="manual">Avançado</button></div>
+        <p class="note" id="controlNote"></p>
         <label>Assistência</label>
         <div class="seg" data-setting="assist"><button data-val="full">Completa</button><button data-val="partial">Parcial</button><button data-val="off">Desligada</button></div>
         <p class="note" id="assistNote"></p>
@@ -149,7 +154,15 @@
       <h2>Como jogar</h2>
       <div class="help-grid">
         <div>
-          <h3>Mouse</h3>
+          <h3>Controle fácil (padrão)</h3>
+          <ul>
+            <li><b>Mova o mouse para os lados</b> (ou arraste o dedo em qualquer lugar da tela). A raquete vai para frente/trás e golpeia sozinha quando a bola chega.</li>
+            <li>Fique alinhado com a bola: longe demais, ela passa ou sai torta.</li>
+            <li><b>Mover para o lado no momento do golpe</b> direciona a bola para aquele lado.</li>
+            <li><b>Botão esquerdo / Topspin</b>: bola com topspin. <b>Botão direito / Corte</b>: bola cortada, curta.</li>
+            <li><b>Espaço, clique ou Sacar</b>: saque.</li>
+          </ul>
+          <h3>Controle avançado (mouse)</h3>
           <ul>
             <li><b>Mover o mouse</b> posiciona a raquete: lados = esquerda/direita, para cima = em direção à rede.</li>
             <li><b>A velocidade da sua mão é a velocidade da raquete.</b> Para bater, recue e leve o mouse para cima (para frente) no momento do contato.</li>
