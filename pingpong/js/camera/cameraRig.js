@@ -81,6 +81,9 @@ export class CameraRig {
     const l = this.look.update(L, smoothL, dt);
     this.camera.position.copy(p);
     this.camera.lookAt(l);
+    // portrait screens: widen the vertical FOV so the table still fits horizontally
+    const aspect = this.camera.aspect || 1.6;
+    if (aspect < 1.2) fov = Math.min(88, fov * Math.min(1.7, 1.2 / aspect * 0.9 + 0.25));
     this.fov += (fov - this.fov) * (1 - Math.exp(-4 * dt));
     if (Math.abs(this.camera.fov - this.fov) > 0.01) { this.camera.fov = this.fov; this.camera.updateProjectionMatrix(); }
   }

@@ -165,6 +165,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .hud-stats { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }
   .hud-stats > div { padding: 4px 7px; }
   .stroke-ind { display: none; }
+  .hint { bottom: auto; top: calc(max(12px, env(safe-area-inset-top)) + 96px); font-size: 13px; }
+  .toast { top: 36%; }
 }
 @media (max-height: 480px) and (orientation: landscape) {
   .panel { padding: 16px; }

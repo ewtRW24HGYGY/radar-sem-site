@@ -99,7 +99,7 @@ export class HumanController {
   }
   toss(t) {
     const hp = this.handPos(new V3());
-    this.world.launchBall(hp, new V3(0, 2.35, 0), new V3());
+    this.world.launchBall(hp, new V3(0, 2.6, 0), new V3());
     this.serve.phase = 'tossed'; this.serve.tossT = t;
     if (this.onToss) this.onToss(this.index);
   }
@@ -148,7 +148,8 @@ export class HumanController {
       x2: clamp(this.targetVel.x * 0.12 + this.pos.x * 0.3, -0.55, 0.55),
     };
     const traj = planServeTrajectory(bc.p, side, this.index, cfg)
-      || planServeTrajectory(bc.p, side, this.index, { ...cfg, sp: 4.4, top: -30 * RPS, side: 0, z2: 0.8 });
+      || planServeTrajectory(bc.p, side, this.index, { ...cfg, sp: 4.4, top: -30 * RPS, side: 0, z2: 0.8 })
+      || planServeTrajectory(bc.p, side, this.index, { ...cfg, sp: 5, top: 15 * RPS, side: 0, z2: 1.0 });
     if (!traj) return;
     const mat = this.face > 0 ? MATERIALS.rubberFH : MATERIALS.rubberBH;
     const imp = solveImpact(bc.v, bc.w, traj.v, traj.w, mat);
@@ -224,11 +225,11 @@ export class HumanController {
     if (this.serve && this.serve.phase === 'tossed' && !this.serve.committed && S.assist !== 'off') {
       const sv = this.serve;
       if (-side * this.targetVel.z > 0.8) { sv.wantSwing = true; sv.handSpeed = Math.max(sv.handSpeed || 0, -side * this.targetVel.z); }
-      const yc = TABLE_HEIGHT + 0.24;
+      const yc = TABLE_HEIGHT + 0.27;
       if (sv.wantSwing && ball.v.y < 0) {
         const g = 9.7, disc = ball.v.y * ball.v.y + 2 * g * (ball.p.y - yc);
         const tTo = disc > 0 ? (ball.v.y + Math.sqrt(disc)) / g : 0;
-        if (tTo <= 0.14) this.commitServe(t, Math.max(0.05, tTo));
+        if (tTo <= 0.12) this.commitServe(t, Math.max(0.04, tTo));
       }
     }
     if (this.servePlan) { this.executeServe(dt, t); return; }

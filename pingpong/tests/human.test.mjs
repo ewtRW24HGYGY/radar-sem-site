@@ -47,9 +47,9 @@ function run(assist, stroke, points, seed, flickSpeed = 6) {
     }
     if (human.serve && human.serve.phase === 'tossed') {
       const b = core.world.ball;
-      if (!inSwing && b.v.y < 0 && b.p.y < 1.02) { inSwing = true; swingStart = t; }
+      if (!inSwing && b.v.y < 0 && b.p.y < 1.12) { inSwing = true; swingStart = t; }
       if (inSwing) tz = 1.75 - Math.min(0.55, (t - swingStart) * flickSpeed * 0.8);
-      tx = b.p.x + 0.0;
+      tx = 0.0;   // a person keeps the serving stance (the ball is held in front of the racket)
     } else if (human.incoming && core.world.ballActive) {
       // read the ball (a person sees it): where will it be at a comfortable height after the bounce?
       if (!plan || t - plan.made > 0.12) {

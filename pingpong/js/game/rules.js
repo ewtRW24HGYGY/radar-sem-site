@@ -17,7 +17,7 @@ export const REASONS = {
   doubleBounce: 'Dois quiques',
   notReturned: 'Sem devolução',
   obstruction: 'Bola tocada antes de quicar (obstrução)',
-  volleyOut: 'Bola rebatida fora da mesa antes de quicar',
+  volleyOut: 'Bola fora (tocada no ar, já fora da mesa)',
   doubleHit: 'Toque duplo',
   stalled: 'Bola parada',
 };

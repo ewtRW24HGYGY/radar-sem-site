@@ -36,6 +36,22 @@ class App {
     this.paddleMeshes = [buildPaddle(), buildPaddle()];
     scene.add(this.paddleMeshes[0], this.paddleMeshes[1]);
     this.ballView = new BallView(scene);
+    // the free hand that holds the ball before the serve (open palm, as the rules require)
+    const skin = new THREE.MeshStandardMaterial({ color: 0xd9a07a, roughness: 0.7 });
+    this.palm = new THREE.Group();
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), skin);
+    palm.scale.set(0.045, 0.013, 0.055); palm.castShadow = true;
+    this.palm.add(palm);
+    for (let i = 0; i < 4; i++) {
+      const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0085, 0.05, 4, 8), skin);
+      f.rotation.x = Math.PI / 2; f.position.set(-0.027 + i * 0.018, 0.004, -0.075); f.castShadow = true;
+      this.palm.add(f);
+    }
+    const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.035, 4, 8), skin);
+    thumb.rotation.set(Math.PI / 2, 0, 0.9); thumb.position.set(0.05, 0.004, -0.02);
+    this.palm.add(thumb);
+    this.palm.visible = false;
+    scene.add(this.palm);
     this.ballView.setColor(this.settings.ballColor);
     this.ballView.showTrail = this.settings.trail;
     this.rig = new CameraRig(this.view.camera);
@@ -145,12 +161,12 @@ class App {
     } else if (mode === 'rally') c1f = (w) => new AIController(w, 1, 'advanced', { coop: true });
     else if (mode === 'versus') c1f = (w) => (isTouch ? new HumanController(w, 1, S) : new KeyboardController(w, 1));
     else c1f = (w) => { const r = new RobotController(w, 1); this.applyRobotSettings(r); r.onFeed = (l) => this.arena.aimRobot(l.dir); return r; };
+    this.arena.showTarget(null);
     this.core = this.makeCore(mode, (w) => new HumanController(w, 0, S), c1f);
     this.humans = this.core.controllers.filter((c) => c instanceof HumanController);
     this.core.start();
     const training = mode === 'free' || mode === 'precision';
     this.arena.robot.visible = training;
-    this.arena.showTarget(null);
     this.paddleMeshes[1].visible = !training;
     this.ballView.resetTrail();
     // camera
@@ -173,6 +189,7 @@ class App {
     if (mode === 'rally') this.ui.training(`<div><span>Rally atual</span><b id="trRally">0</b></div><div><span>Recorde</span><b id="trBest">${this.bestRally}</b></div>`);
     if (training) this.updateTrainingHud(this.core.training);
     if (mode === 'pro') this.ui.toast('Modo profissional', 'Melhor de 5 sets · regras oficiais', 'neutral', 2200);
+    else if (isTouch && innerHeight > innerWidth) this.ui.toast('Dica', 'Gire o celular na horizontal para ver mais da mesa', 'neutral', 2600);
   }
 
   quit() {
@@ -204,7 +221,7 @@ class App {
     this.rig.setMode(m);
     if (this.mode !== 'versus') { this.settings.camera = m; this.ui.refresh(); }
     this.updateCamLabel();
-    this.ui.hint(`Câmera: ${CAMERA_MODES[m]}`); clearTimeout(this.camHintT); this.camHintT = setTimeout(() => this.ui.hint(''), 1200);
+    if (isTouch) { this.ui.hint(`Câmera: ${CAMERA_MODES[m]}`); clearTimeout(this.camHintT); this.camHintT = setTimeout(() => this.ui.hint(''), 1200); }
   }
   updateCamLabel() { this.ui.setCamLabel(`Câmera: ${CAMERA_MODES[this.rig.mode]}`); }
 
@@ -302,7 +319,7 @@ class App {
     const human = this.core.controllers[d.server] instanceof HumanController;
     if (human) {
       const who = this.mode === 'versus' ? `Jogador ${d.server + 1}: ` : '';
-      this.ui.hint(isTouch ? `${who}toque em SACAR (ou na sua área) e deslize para frente para golpear` : `${who}${this.mode === 'versus' ? 'clique' : 'Espaço ou clique'} para lançar · leve o mouse para frente para golpear`);
+      this.ui.hint(isTouch ? `${who}toque em SACAR e deslize para cima enquanto a bola desce` : `${who}${this.mode === 'versus' ? 'clique' : 'Espaço ou clique'} para lançar · leve o mouse para frente enquanto a bola desce`);
     } else if (this.core.controllers[d.server] instanceof KeyboardController) this.ui.hint('Jogador 2: Espaço/F para lançar e sacar · Q topspin · E corte');
     else this.ui.hint('');
     if (this.core.score.isMatchPoint() && this.mode !== 'rally') this.ui.toast('Match point', '', 'neutral', 1300);
@@ -420,6 +437,12 @@ class App {
     const ballVisible = !(training && !w.ballActive);
     const vis = this.paused ? 0 : dt;
     this.ballView.update(vis, w.ball.p, w.ball.v, w.ball.w, this.view.camera, ballVisible);
+    const holding = !w.ballActive && core.referee.phase === 'hold';
+    this.palm.visible = holding;
+    if (holding) {
+      this.palm.position.set(w.ball.p.x, w.ball.p.y - 0.033, w.ball.p.z);
+      this.palm.rotation.y = w.ball.p.z > 0 ? 0 : Math.PI;
+    }
     this.table.net.update(dt);
     this.arena.update(dt);
     const viewer = core.controllers[0];
