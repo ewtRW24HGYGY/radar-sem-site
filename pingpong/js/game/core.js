@@ -191,7 +191,10 @@ export class GameCore {
     if (t.state === 'wait' && this.time >= t.nextFeed) {
       if (t.balls >= t.maxBalls) { t.done = true; this.phase = 'matchOver'; this.emit('trainingOver', t); return; }
       const robot = this.controllers[1];
-      if (robot?.feed) { robot.feed(this.time); t.balls++; t.state = 'flight'; t.awaiting = true; t.hitByPlayer = false; t.feedTime = this.time; }
+      if (robot?.feed && robot.feed(this.time)) {
+        t.balls++; t.state = 'flight'; t.awaiting = true; t.hitByPlayer = false; t.feedTime = this.time;
+        this.controllers[0]?.onIncoming?.(this.time);
+      } else t.nextFeed = this.time + 0.3;
     }
     if (t.state === 'flight' && this.time - t.feedTime > 3.5) this.finishBall(false);
   }

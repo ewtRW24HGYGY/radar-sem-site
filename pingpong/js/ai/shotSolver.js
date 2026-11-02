@@ -6,7 +6,8 @@
 // Nothing here moves the ball directly: the AI only decides how to swing its racket.
 import { V3, clamp } from '../physics/math.js';
 import { BallState, integrateBall, restitution, SPIN_FACTOR } from '../physics/ball.js';
-import { BALL_RADIUS as R, TABLE_HEIGHT, NET_HEIGHT, NET_HALF_LENGTH } from '../physics/constants.js';
+import { simulate } from '../physics/world.js';
+import { BALL_RADIUS as R, TABLE_HEIGHT, NET_HEIGHT, NET_HALF_LENGTH, TABLE_HALF_L, TABLE_HALF_W } from '../physics/constants.js';
 
 // World spin vector from topspin/sidespin components for a ball travelling along (dx, dz).
 // Topspin axis = up × direction; sidespin is the vertical component.
@@ -148,6 +149,49 @@ export function solveImpact(vIn, wIn, vOut, wOut, mat) {
   const wxn = new V3().crossVectors(wAch, n);
   const u = vOutT.addScaled(wxn, -R).addScaled(n, un);
   return { n, u, wOut: wAch, limited, approach: un - vInN };
+}
+
+// Full flight check of a serve: first bounce on the server's half, then over the net (with margin)
+// onto the receiver's half. Returns the second bounce or null.
+export function checkServeFlight(p, v, w, serverIndex, minClear = 0.015) {
+  const st = new BallState(); st.p.copy(p); st.v.copy(v); st.w.copy(w);
+  const bounces = [];
+  let net = false, floor = false, clear = Infinity, pz = p.z, py = p.y;
+  simulate(st, 2, 0.002, (t, s2) => {
+    if (Math.sign(s2.p.z) !== Math.sign(pz)) clear = Math.min(clear, (py + s2.p.y) / 2 - R - (TABLE_HEIGHT + NET_HEIGHT));
+    pz = s2.p.z; py = s2.p.y;
+  }, (ev) => {
+    if (ev.type === 'table') bounces.push({ side: ev.side, x: ev.pos.x, z: ev.pos.z });
+    else if (ev.type === 'net') net = true;
+    else if (ev.type === 'floor' || ev.type === 'tableSide') floor = true;
+    return bounces.length >= 2 || floor;
+  });
+  if (net || bounces.length < 2) return null;
+  if (bounces[0].side !== serverIndex || bounces[1].side === serverIndex) return null;
+  const b = bounces[1];
+  if (Math.abs(b.x) > TABLE_HALF_W - 0.04 || Math.abs(b.z) > TABLE_HALF_L - 0.04) return null;
+  if (clear < minClear) return null;
+  return { x2: b.x, z2: b.z, clear };
+}
+
+// Plan a legal serve trajectory from contact point p for the server on `side` (+1 / -1).
+// cfg: { sp, top, side, z1, z2, x2 } with spins in rad/s. Returns { v, w } or null.
+export function planServeTrajectory(p, side, serverIndex, cfg) {
+  const x1 = p.x + (cfg.x2 - p.x) * 0.35;
+  let best = null, bestScore = Infinity;
+  for (const f of [1, 0.9, 1.1, 0.8, 1.2, 1.32, 0.7, 1.45, 1.6]) {
+    for (const z1f of [1, 0.92, 1.06, 0.84, 0.76]) {
+      const z1 = side * Math.max(0.3, Math.min(TABLE_HALF_L - 0.06, cfg.z1 * z1f));
+      const sol = solveLaunch(p, cfg.sp * f, cfg.top, cfg.side, x1, z1, { sameSide: true });
+      if (!sol) continue;
+      const res = checkServeFlight(p, sol.v, sol.w, serverIndex);
+      if (!res) continue;
+      const score = Math.abs(Math.abs(res.z2) - cfg.z2) + 0.5 * Math.abs(res.x2 - cfg.x2) + Math.abs(f - 1) * 0.2;
+      if (score < bestScore) { bestScore = score; best = sol; }
+    }
+    if (best && bestScore < 0.15) break;
+  }
+  return best;
 }
 
 export const NET_TOP = TABLE_HEIGHT + NET_HEIGHT;

@@ -9,7 +9,7 @@ import {
   MATERIALS, TABLE_HALF_L as HL, TABLE_HALF_W as HW, TABLE_HEIGHT, BALL_RADIUS as R, PADDLE_HALF_THICK,
 } from '../physics/constants.js';
 import { simulate } from '../physics/world.js';
-import { solveLaunch, solveLaunchAdaptive, solveImpact, topspinOf } from './shotSolver.js';
+import { solveLaunch, solveLaunchAdaptive, solveImpact, topspinOf, planServeTrajectory } from './shotSolver.js';
 import { predict, hittableWindow, Trajectory } from '../game/prediction.js';
 import { paddleQuatFromNormal, naturalTip, aimNormal } from '../game/paddlePose.js';
 
@@ -242,8 +242,8 @@ export class AIController {
   buildPlan(t, bc, opts) {
     const lv = this.lv, rng = this.rng;
     const keep = opts.keep;
-    const shot = keep ? keep.shot : this.chooseShot(bc);
-    const target = keep ? keep.target : this.chooseTarget(shot);
+    const shot = keep ? keep.shot : (opts.shot || this.chooseShot(bc));
+    const target = keep ? keep.target : (opts.target || this.chooseTarget(shot));
     const forehand = keep ? keep.face > 0 : bc.p.x * this.rightX > -0.12 - lv.aggression * 0.12;
     const mat = forehand ? MATERIALS.rubberFH : MATERIALS.rubberBH;
     let sol = solveLaunchAdaptive(bc.p, shot.speed, shot.top, shot.side, target.x, target.z, { minClear: lv.minClear });
@@ -268,6 +268,7 @@ export class AIController {
     const topIn = Math.abs(topspinOf(bc.v, bc.w));
     let stress = 1 + 0.045 * Math.max(0, bc.v.length() - 8) + 0.0025 * Math.max(0, topIn - 150);
     if (opts.stretch) stress += 1.4;
+    if (opts.stressAdd) stress += opts.stressAdd;
     if (shot.kind === 'smash') stress += 0.5;
     if (this.coop) stress *= 0.3;
     if (opts.serve) stress *= 0.6;
@@ -302,7 +303,7 @@ export class AIController {
   startServe(t) {
     this.plan = null; this.pendingPlanAt = -1;
     const stance = this.side * 0.0 + this.rightX * (-0.35 + this.rng() * 0.5);
-    this.serve = { phase: 'hold', tossAt: t + 1.0 + this.rng() * 0.7, stance };
+    this.serve = { phase: 'hold', tossAt: this.manual ? Infinity : t + 1.0 + this.rng() * 0.7, stance };
   }
   handPos(out) {
     return out.set(clamp(this.pos.x - this.rightX * 0.3, -HW + 0.05, HW - 0.05), TABLE_HEIGHT + 0.2, this.side * (HL + 0.14));
@@ -341,19 +342,7 @@ export class AIController {
     }[type];
     const oppRight = -this.rightX;
     const x2 = this.coop ? 0 : (rng() < 0.5 ? oppRight : -oppRight) * (0.15 + rng() * 0.4);
-    const x1 = lerp(bc.p.x, x2, 0.35);
-    let best = null, bestScore = Infinity;
-    for (const f of [0.8, 0.9, 1, 1.1, 1.2, 1.32, 1.45, 1.6]) {
-      for (const z1f of [1, 0.92, 1.06, 0.84, 0.76]) {
-        const sol = solveLaunch(bc.p, cfg.sp * f, cfg.top * RPS, cfg.side * RPS, x1, s * clamp(cfg.z1 * z1f, 0.3, HL - 0.06), { sameSide: true });
-        if (!sol) continue;
-        const res = this.checkServe(bc.p, sol.v, sol.w);
-        if (!res) continue;
-        const score = Math.abs(Math.abs(res.z2) - cfg.z2) + 0.5 * Math.abs(res.x2 - x2) + (res.clear < 0.03 ? 1 : 0);
-        if (score < bestScore) { bestScore = score; best = sol; }
-      }
-      if (best && bestScore < 0.15) break;
-    }
+    const best = planServeTrajectory(bc.p, s, this.index, { sp: cfg.sp, top: cfg.top * RPS, side: cfg.side * RPS, z1: cfg.z1, z2: cfg.z2, x2 });
     if (!best) { this.serve.failed = true; return; }
     const imp = solveImpact(bc.v, bc.w, best.v, best.w, MATERIALS.rubberFH);
     if (!imp) return;
@@ -374,27 +363,6 @@ export class AIController {
       zone: null, stretch: false, serve: true, hit: false, refined: true, anchored: false, ts: t + bc.t - T, ...plan0,
     };
   }
-  checkServe(p, v, w) {
-    const st = new BallState(); st.p.copy(p); st.v.copy(v); st.w.copy(w);
-    const bounces = [];
-    let net = false, floor = false, clear = Infinity, pz = p.z, py = p.y;
-    simulate(st, 2, 0.002, (t, s2) => {
-      if (Math.sign(s2.p.z) !== Math.sign(pz)) clear = Math.min(clear, (py + s2.p.y) / 2 - R - (TABLE_HEIGHT + 0.1525));
-      pz = s2.p.z; py = s2.p.y;
-    }, (ev) => {
-      if (ev.type === 'table') bounces.push({ side: ev.side, x: ev.pos.x, z: ev.pos.z });
-      else if (ev.type === 'net') net = true;
-      else if (ev.type === 'floor' || ev.type === 'tableSide') floor = true;
-      return bounces.length >= 2 || floor;
-    });
-    if (net || bounces.length < 2) return null;
-    if (bounces[0].side !== this.index || bounces[1].side === this.index) return null;
-    const b = bounces[1];
-    if (Math.abs(b.x) > HW - 0.04 || Math.abs(b.z) > HL - 0.04) return null;
-    if (clear < 0.015) return null;
-    return { x2: b.x, z2: b.z, clear };
-  }
-
   // ——— Racket motion ———
   approach(target, dt, maxSpeed, omega = 14) {
     _tmp.subVectors(target, this.pos).scale(omega * omega).addScaled(this.vel, -2 * omega);
@@ -439,9 +407,10 @@ export class AIController {
       if (p) this.plan = null;
       // ready position: anticipate the ball's lateral position
       const b = this.world.ball.p;
-      const tx = this.serve ? (this.serve.stance + this.rightX * 0.18) : clamp(b.x * 0.35, -0.45, 0.45);
-      const tz = this.side * (HL + (this.serve ? 0.32 : 0.5));
+      let tx = this.serve ? (this.serve.stance + this.rightX * 0.18) : clamp(b.x * 0.35, -0.45, 0.45);
+      let tz = this.side * (HL + (this.serve ? 0.32 : 0.5));
       const ty = this.serve ? TABLE_HEIGHT + 0.12 : 0.98 + Math.sin(t * 1.7 + this.index) * 0.012;
+      if (this.manualTarget) { tx = this.manualTarget.x; tz = this.manualTarget.z; }
       _tmp2.set(tx, ty, tz);
       this.approach(_tmp2, dt, lv.move, 8);
       this.computeReadyQuat(this.pos.x);
