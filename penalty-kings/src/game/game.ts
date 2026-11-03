@@ -453,7 +453,7 @@ export class Game {
     this.frameNo++;
     const input = this.input;
     input.poll();
-    if (input.pausePressed() && this.state !== 'menu') this.togglePause();
+    if (input.pausePressed() && this.state !== 'menu' && this.state !== 'replay') this.togglePause();
     if (input.cameraPressed() && this.state !== 'menu' && this.state !== 'replay') this.cycleCamera();
     if (input.followPressed()) {
       this.settings.followBall = !this.settings.followBall;
@@ -517,11 +517,11 @@ export class Game {
         break;
       case 'charge':
         this.handleAimMotion(dt, 0.5);
-        if (this.input.actionDown()) {
-          this.power = Math.min(1.15, this.power + dt / 1.05);
-        }
+        // Power follows wall-clock hold time, so it behaves the same at any frame rate.
+        if (this.input.actionDown()) this.power = Math.min(1.15, (performance.now() - this.chargeStart) / 1050);
         this.ui.setPower(this.power);
-        if (this.input.actionReleased() || (!this.input.actionDown() && this.power > 0)) {
+        if (this.input.actionReleased() || !this.input.actionDown()) {
+          this.power = Math.max(0.08, this.power);
           sim.updateIntent({ power: this.power, target: this.vecTarget() });
           sim.startRunUp();
           this.state = 'run';
@@ -639,6 +639,7 @@ export class Game {
     if (input.actionPressed() && this.stateT > 0.35 && !this.ui.panelOpen) {
       this.state = 'charge';
       this.power = 0;
+      this.chargeStart = performance.now();
       this.stateT = 0;
     }
   }
@@ -679,6 +680,7 @@ export class Game {
     }
   }
   private timingFeedbackPending = false;
+  private chargeStart = 0;
 
   private handleCpuRun(): void {
     const sim = this.sim!;
@@ -886,14 +888,13 @@ export class Game {
     const finished = this.isModeFinished();
     const nextLabel = finished ? 'Ver resumo' : 'Próxima cobrança';
     this.lastResult = { msg, nextLabel };
-    if (this.settings.autoReplay && this.notable && st.outcome !== 'retake') {
-      setTimeout(() => {
-        if (this.state === 'result' && this.sim === sim) this.startReplay(true);
-      }, 1600);
-    }
+    const autoReplay = this.settings.autoReplay && this.notable && st.outcome !== 'retake';
+    // With an automatic replay the result card appears when the replay ends (no flicker).
     setTimeout(() => {
-      if (this.state === 'result' && this.sim === sim) this.showResultCard();
-    }, 1100);
+      if (this.state !== 'result' || this.sim !== sim) return;
+      if (autoReplay) this.startReplay(true);
+      else this.showResultCard();
+    }, autoReplay ? 1500 : 1100);
   }
   private lastResult: { msg: string | null; nextLabel: string } = { msg: null, nextLabel: '' };
 

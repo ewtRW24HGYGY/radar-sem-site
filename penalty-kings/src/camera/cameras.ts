@@ -103,7 +103,7 @@ export class CameraDirector {
         break;
       }
       case 'keeperPOV': {
-        eye.set(c.keeperPos.x * 0.6, 1.95, -1.35);
+        eye.set(c.keeperPos.x * 0.6, 1.9, -0.55);
         tgt.set(c.keeperPos.x * 0.3, 0.9, 11);
         fov = 56;
         tau = 0.12;
