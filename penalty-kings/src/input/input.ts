@@ -22,7 +22,7 @@ export class Input {
   lastDevice: 'keyboard' | 'touch' | 'gamepad' = 'keyboard';
   enabled = true;
 
-  constructor(private el: HTMLElement) {
+  constructor(el: HTMLElement) {
     window.addEventListener('keydown', (e) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();

@@ -80,7 +80,7 @@ export class Game {
   private menuSim: PenaltySim | null = null;
   private keeperDiveSent = false;
 
-  constructor(private app: HTMLElement, private view: HTMLElement) {
+  constructor(app: HTMLElement, private view: HTMLElement) {
     this.settings = load().settings;
     this.ui = new UI(app);
     this.input = new Input(view);

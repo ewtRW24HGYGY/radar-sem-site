@@ -201,8 +201,8 @@ export function buildHumanoid(rig: Rig, a: Appearance): Mesh[] {
   // Trapezius/shoulder caps
   for (const side of ['L', 'R'] as const) {
     const sx = side === 'L' ? 1 : -1;
-    const cap = new Mesh(new SphereGeometry(0.068 * s * g, 18, 12), a.keeper ? M.sleeve : M.sleeve);
-    cap.position.set(sx * (P.shoulderX - 0.02 * s), P.shoulderY - 0.02 * s, 0);
+    const cap = new Mesh(new SphereGeometry(0.056 * s * g, 18, 12), a.keeper ? M.sleeve : M.sleeve);
+    cap.position.set(sx * (P.shoulderX - 0.03 * s), P.shoulderY - 0.035 * s, -0.005);
     cap.scale.set(1.05, 0.9, 1);
     cap.castShadow = true;
     b.chest.add(cap);

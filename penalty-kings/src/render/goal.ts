@@ -50,7 +50,7 @@ export class NetCloth {
     const uvs: number[] = [];
     const idx: number[] = [];
     const cons: number[] = [];
-    const tex = 0.24; // texture tile size (two mesh cells)
+    const tile = 0.24; // texture tile size (two mesh cells)
     for (const pan of NET_PANELS) {
       const [c00, c10, c01, c11] = pan.corners;
       const la = Math.max(c00.distanceTo(c10), c01.distanceTo(c11));
@@ -70,7 +70,7 @@ export class NetCloth {
           p.copy(qa).lerp(qb, b);
           verts.push(p.x, p.y, p.z);
           pins.push(i === 0 || j === 0 || i === nu || j === nv ? 1 : 0);
-          uvs.push((a * la) / tex, (b * lb) / tex);
+          uvs.push((a * la) / tile, (b * lb) / tile);
         }
       }
       const id = (i: number, j: number) => base + j * (nu + 1) + i;

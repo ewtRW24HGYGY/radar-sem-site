@@ -65,19 +65,17 @@ export class CameraDirector {
     const followAfterKick = c.kicked && c.followBall && c.sinceKick > 0.05;
     switch (this.mode) {
       case 'behind': {
-        // Over the shoulder, slightly high: classic penalty view.
-        const back = c.kickerFwd.clone().setY(0).normalize();
-        const base = c.kicked ? new Vector3(c.ball.x * 0.0, 0, 11) : c.kickerPos;
-        eye.copy(base).addScaledVector(back, c.kicked ? -4.6 : -3.4).add(new Vector3(0, 2.05, 0));
+        // High over-the-shoulder broadcast-game view: the taker sits low in frame, the goal stays clear.
         if (!c.kicked) {
-          eye.x = eye.x * 0.55;
-          eye.z = Math.max(eye.z, 13.2);
+          eye.set(c.kickerPos.x * 0.45 + 0.35, 2.75, Math.max(c.kickerPos.z + 4.2, 15.6));
+        } else {
+          eye.set(0.35, 2.75, 15.6);
         }
-        tgt.set(c.aim.x * 0.25, 1.15, 0);
-        fov = 40;
+        tgt.set(c.aim.x * 0.22, 0.95, 0);
+        fov = 34;
         if (followAfterKick) {
-          tgt.lerp(c.ball, 0.55);
-          fov = 36;
+          tgt.lerp(c.ball, 0.45);
+          fov = 31;
         }
         break;
       }

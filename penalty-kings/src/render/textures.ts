@@ -422,6 +422,8 @@ export function crowdAtlas(): CanvasTexture {
     for (let row = 0; row < 2; row++) {
       for (let col = 0; col < cols; col++) {
         const ox = col * 64;
+        g.save();
+        g.translate(ox, 0);
         const oy = row * 128;
         const shade = 0.75 + rnd() * 0.25;
         // Shirt is white (tinted per-instance in the shader through the R channel mask).
@@ -463,6 +465,7 @@ export function crowdAtlas(): CanvasTexture {
         g.ellipse(32, 36 + oy, 10.5, 8 + rnd() * 3, 0, Math.PI, Math.PI * 2);
         g.fill();
         void shade;
+        g.restore();
       }
     }
     const t = new CanvasTexture(c);
